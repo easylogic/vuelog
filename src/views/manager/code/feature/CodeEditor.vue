@@ -1,0 +1,33 @@
+<template>
+
+    <div class="code-editor">
+      
+    </div>
+
+</template>
+<script>
+
+export default {
+  name: 'CodeEditor',
+  data () {
+    return {
+
+    }
+  },
+  computed () {
+    return {
+      resources : this.$store.state.currentDocument.resources
+    }
+  }
+}
+</script>
+
+<style lang="less" scoped>
+.code-editor {
+    position: absolute;
+    left: 240px;
+    top:0px;
+    width: 700px;
+    bottom:0px;
+}
+</style>

@@ -1,0 +1,33 @@
+
+@family-sans-serif: "Avenir", Helvetica, Arial, sans-serif;
+@family-primary: @family-sans-serif;
+
+
+
+@background: white;
+@nav-background: #F5F5F5;
+@primary: #F2B53C;
+@info: #4e87b4;
+
+@body-background-color: @background;
+
+// Note: Variable overwritten after This will be ignored
+//@import "~bulma/bulma.sass"
+
+body {
+  background-color: @background;
+  padding:0px;
+  margin:0px;
+}
+
+// Animations
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.75s;
+}
+  
+
+.fade-enter, .fade-leave-to {
+  opacity: 0;
+}
+  
+
