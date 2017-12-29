@@ -1,10 +1,7 @@
 <template>
-  <div class="container">
-    <ul class='document-viewer'>
-      {{ doc }}
-
-    </ul>
-  </div>
+    <div class='document-viewer'>
+      <iframe ref="generatedDocument" :src="url" scrolling="no"></iframe>
+    </div>
 </template>
 <script>
 
@@ -17,35 +14,32 @@ export default {
     }
   },
   computed: {
+    url () {
+      return '/gen/' + this.$route.params.id ;
+    },
     doc () {
       return this.$store.state.currentDocument
     }
+  },
+  mounted: function () {
+      const self = this; 
+      window.resizeHeight = function (height) {
+        self.$refs.generatedDocument.style.height = height + 'px';
+      }
   }
 }
 </script>
 
 <style lang="less">
-.container {
-  margin: 0 auto; 
-  max-width: 960px;
-}
 
-.document-list {
-  list-style-type: none;
-  padding-left: 0px;
-  display: flex;
-  flex-wrap: wrap;
-  box-shadow: 0 0 0 rgba(0,0,0,0.1);
+.document-viewer  {
 
-  .document-item {
-    width: 300px;
-    height: 200px;
-    background-color: rgba(0, 0, 0, 0.5);
-    color: white;
-    box-sizing:border-box;
-    margin: 10px;
-    padding: 30px;
+  iframe {
+    width:100%;
+    border:1px solid #ececec;
+    min-height: 500px;
   }
+
 }
 
 

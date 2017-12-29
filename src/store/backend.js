@@ -19,34 +19,6 @@ $backend.interceptors.response.use(function (response) {
  
 export default {
 
-  fetchResourceOne (callback) {
-    $backend.get(`resource/one`)
-      .then(response => {
-        return callback(response.data)
-      })
-  },
-
-  fetchResourceTwo (resourceId, callback) {
-  	$backend.get(`resource/two/${resourceId}`)
-  		.then(response => {
-  			return callback(response.data)
-      })
-  },
-
-  allUser ( callback ) {
-    $backend.get('/user')
-      .then(response => {
-        return callback(response.data)
-      })
-  },
-
-  addUser ( callback ) {
-    $backend.post('/user')
-      .then(response => { 
-        return callback(response.data)
-      })
-  },
-
   getCurrentLocale() {
     let lang; 
       
@@ -77,10 +49,10 @@ export default {
         documentType : 'code',
         timestamp : Date.now(), 
         path: idOrPath,
-        Title: "blabla",
-        Url : "custom path or auto created path",
-        description : "", 
-        Access : 'public',
+        title: "blabla",
+        url : "custom path or auto created path",
+        description : "이건 정말 환상적인 거에요. 같이보시죠.", 
+        access : 'public',
         externalResources : [
             'Https://ssss.sss.sss' , 
             'Local resource name',  
@@ -108,6 +80,91 @@ export default {
     }
 
     callback(doc);
+  },
+
+  fetchGeneratedDocument (idOrPath, callback) {
+    const html =  `<h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    v
+    v
+    <h1>generated${idOrPath}</h1><h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1><h1>generated${idOrPath}</h1>
+
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    <h1>generated${idOrPath}</h1>
+    
+    html`
+
+    callback(html);
   },
 
   fetchDocumentList (search, callback) {

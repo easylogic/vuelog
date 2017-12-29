@@ -11,6 +11,7 @@ import Footer from './components/Footer.vue'
 import Home from './views/Home.vue'
 import Editor from './views/Editor.vue'
 import Viewer from './views/Viewer.vue'
+import GeneratedViewer from './views/GeneratedViewer.vue'
 
 
 export default new Router({
@@ -41,6 +42,11 @@ export default new Router({
         path: '/edit/:id', components: {
             navbar: Navbar,
             main: Editor
+        }
+    },
+    {
+        path: '/gen/:id', components : {
+            main : GeneratedViewer
         }
     }
   ]

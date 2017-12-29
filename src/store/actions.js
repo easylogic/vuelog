@@ -8,22 +8,11 @@ import {
     ALL_USER, 
     ADD_RESOURCE,
     LOAD_DOCUMENT,
+    LOAD_GENERATED_DOCUMENT,    
     LOAD_DOCUMENT_LIST
 } from './mutation-constants'
 
 export default {
-
-  fetchResouceOne: function  (context) {
-    backend.fetchResouceOne(function(responseData) {
-      context.commit('setResource', responseData)
-    })
-  },
-
-  fetchResouceTwo: function  (context, resouceId) {
-  	backend.fetchResouceTwo(resouceId, function(responseData) {
-  		context.commit('setResource', responseData)
-  	})
-  },
 
   getCurrentLocale: function () {
     return backend.getCurrentLocale()
@@ -64,6 +53,12 @@ export default {
         commit(LOAD_DOCUMENT, doc);
     })
   },
+
+  [LOAD_GENERATED_DOCUMENT] ( { commit }, idOrPath ) {
+    backend.fetchGeneratedDocument(idOrPath, function (html) {
+        commit(LOAD_GENERATED_DOCUMENT, html);
+    })
+  },  
 
   [LOAD_DOCUMENT_LIST] ( { commit }, search) {
     backend.fetchDocumentList(search || {page : 1}, function (search, documents) {
