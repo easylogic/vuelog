@@ -65,15 +65,18 @@ require = (function (modules, cache, entry) {
 
     // Override the current require with this new one
     return newRequire;
-})({9:[function(require,module,exports) {
+})({10:[function(require,module,exports) {
 var global = (1,eval)("this");
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
 /*!
- * Vue.js v2.5.9
+ * Vue.js v2.5.13
  * (c) 2014-2017 Evan You
  * Released under the MIT License.
  */
-'use strict';
-
 /*  */
 
 var emptyObject = Object.freeze({});
@@ -100,7 +103,9 @@ function isFalse(v) {
  * Check if value is primitive
  */
 function isPrimitive(value) {
-  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+  return typeof value === 'string' || typeof value === 'number' ||
+  // $flow-disable-line
+  typeof value === 'symbol' || typeof value === 'boolean';
 }
 
 /**
@@ -387,6 +392,7 @@ var config = {
   /**
    * Option merge strategies (used in core/util/options)
    */
+  // $flow-disable-line
   optionMergeStrategies: Object.create(null),
 
   /**
@@ -427,6 +433,7 @@ var config = {
   /**
    * Custom user key aliases for v-on
    */
+  // $flow-disable-line
   keyCodes: Object.create(null),
 
   /**
@@ -1139,13 +1146,13 @@ function mergeDataOrFn(parentVal, childVal, vm) {
     // check if parentVal is a function here because
     // it has to be a function to pass previous merges.
     return function mergedDataFn() {
-      return mergeData(typeof childVal === 'function' ? childVal.call(this) : childVal, typeof parentVal === 'function' ? parentVal.call(this) : parentVal);
+      return mergeData(typeof childVal === 'function' ? childVal.call(this, this) : childVal, typeof parentVal === 'function' ? parentVal.call(this, this) : parentVal);
     };
   } else {
     return function mergedInstanceDataFn() {
       // instance merge
-      var instanceData = typeof childVal === 'function' ? childVal.call(vm) : childVal;
-      var defaultData = typeof parentVal === 'function' ? parentVal.call(vm) : parentVal;
+      var instanceData = typeof childVal === 'function' ? childVal.call(vm, vm) : childVal;
+      var defaultData = typeof parentVal === 'function' ? parentVal.call(vm, vm) : parentVal;
       if (instanceData) {
         return mergeData(instanceData, defaultData);
       } else {
@@ -1268,10 +1275,16 @@ var defaultStrat = function (parentVal, childVal) {
  */
 function checkComponents(options) {
   for (var key in options.components) {
-    var lower = key.toLowerCase();
-    if (isBuiltInTag(lower) || config.isReservedTag(lower)) {
-      warn('Do not use built-in or reserved HTML elements as component ' + 'id: ' + key);
-    }
+    validateComponentName(key);
+  }
+}
+
+function validateComponentName(name) {
+  if (!/^[a-zA-Z][\w-]*$/.test(name)) {
+    warn('Invalid component name: "' + name + '". Component names ' + 'can only contain alphanumeric characters and the hyphen, ' + 'and must start with a letter.');
+  }
+  if (isBuiltInTag(name) || config.isReservedTag(name)) {
+    warn('Do not use built-in or reserved HTML elements as component ' + 'id: ' + name);
   }
 }
 
@@ -1314,6 +1327,9 @@ function normalizeProps(options, vm) {
  */
 function normalizeInject(options, vm) {
   var inject = options.inject;
+  if (!inject) {
+    return;
+  }
   var normalized = options.inject = {};
   if (Array.isArray(inject)) {
     for (var i = 0; i < inject.length; i++) {
@@ -1324,7 +1340,7 @@ function normalizeInject(options, vm) {
       var val = inject[key];
       normalized[key] = isPlainObject(val) ? extend({ from: key }, val) : { from: val };
     }
-  } else if ("development" !== 'production' && inject) {
+  } else if ("development" !== 'production') {
     warn("Invalid value for option \"inject\": expected an Array or an Object, " + "but got " + toRawType(inject) + ".", vm);
   }
 }
@@ -1447,7 +1463,9 @@ function validateProp(key, propOptions, propsData, vm) {
     observe(value);
     observerState.shouldConvert = prevShouldConvert;
   }
-  if ("development" !== 'production') {
+  if ("development" !== 'production' &&
+  // skip validation for weex recycle-list child component props
+  !(false && isObject(value) && '@binding' in value)) {
     assertProp(prop, key, value, vm, absent);
   }
   return value;
@@ -1881,18 +1899,19 @@ function createFnInvoker(fns) {
 }
 
 function updateListeners(on, oldOn, add, remove$$1, vm) {
-  var name, cur, old, event;
+  var name, def, cur, old, event;
   for (name in on) {
-    cur = on[name];
+    def = cur = on[name];
     old = oldOn[name];
     event = normalizeEvent(name);
+    /* istanbul ignore if */
     if (isUndef(cur)) {
       "development" !== 'production' && warn("Invalid handler for event \"" + event.name + "\": got " + String(cur), vm);
     } else if (isUndef(old)) {
       if (isUndef(cur.fns)) {
         cur = on[name] = createFnInvoker(cur);
       }
-      add(event.name, cur, event.once, event.capture, event.passive);
+      add(event.name, cur, event.once, event.capture, event.passive, event.params);
     } else if (cur !== old) {
       old.fns = cur;
       on[name] = old;
@@ -2344,10 +2363,10 @@ function resolveSlots(children, context) {
     // named slots should only be respected if the vnode was rendered in the
     // same context.
     if ((child.context === context || child.fnContext === context) && data && data.slot != null) {
-      var name = child.data.slot;
+      var name = data.slot;
       var slot = slots[name] || (slots[name] = []);
       if (child.tag === 'template') {
-        slot.push.apply(slot, child.children);
+        slot.push.apply(slot, child.children || []);
       } else {
         slot.push(child);
       }
@@ -3125,6 +3144,7 @@ function getData(data, vm) {
 var computedWatcherOptions = { lazy: true };
 
 function initComputed(vm, computed) {
+  // $flow-disable-line
   var watchers = vm._computedWatchers = Object.create(null);
   // computed properties are just getters during SSR
   var isSSR = isServerRendering();
@@ -3475,15 +3495,8 @@ function bindObjectProps(data, tag, value, asProp, isSync) {
 /**
  * Runtime helper for rendering static trees.
  */
-function renderStatic(index, isInFor, isOnce) {
-  // render fns generated by compiler < 2.5.4 does not provide v-once
-  // information to runtime so be conservative
-  var isOldVersion = arguments.length < 3;
-  // if a static tree is generated by v-once, it is cached on the instance;
-  // otherwise it is purely static and can be cached on the shared options
-  // across all instances.
-  var renderFns = this.$options.staticRenderFns;
-  var cached = isOldVersion || isOnce ? this._staticTrees || (this._staticTrees = []) : renderFns.cached || (renderFns.cached = []);
+function renderStatic(index, isInFor) {
+  var cached = this._staticTrees || (this._staticTrees = []);
   var tree = cached[index];
   // if has already-rendered static tree and not inside v-for,
   // we can reuse the same tree by doing a shallow clone.
@@ -3491,7 +3504,8 @@ function renderStatic(index, isInFor, isOnce) {
     return Array.isArray(tree) ? cloneVNodes(tree) : cloneVNode(tree);
   }
   // otherwise, render a fresh tree.
-  tree = cached[index] = renderFns[index].call(this._renderProxy, null, this);
+  tree = cached[index] = this.$options.staticRenderFns[index].call(this._renderProxy, null, this // for render fns generated for functional component templates
+  );
   markStatic(tree, "__static__" + index, false);
   return tree;
 }
@@ -3648,6 +3662,22 @@ function mergeProps(to, from) {
 
 /*  */
 
+// Register the component hook to weex native render engine.
+// The hook will be triggered by native, not javascript.
+
+
+// Updates the state of the component to weex native render engine.
+
+/*  */
+
+// https://github.com/Hanks10100/weex-native-directive/tree/master/component
+
+// listening on native callback
+
+/*  */
+
+/*  */
+
 // hooks to be invoked on component VNodes during patch
 var componentVNodeHooks = {
   init: function init(vnode, hydrating, parentElm, refElm) {
@@ -3784,21 +3814,21 @@ function createComponent(Ctor, data, context, children, tag) {
   // return a placeholder vnode
   var name = Ctor.options.name || tag;
   var vnode = new VNode("vue-component-" + Ctor.cid + (name ? "-" + name : ''), data, undefined, undefined, undefined, context, { Ctor: Ctor, propsData: propsData, listeners: listeners, tag: tag, children: children }, asyncFactory);
+
+  // Weex specific: invoke recycle-list optimized @render function for
+  // extracting cell-slot template.
+  // https://github.com/Hanks10100/weex-native-directive/tree/master/component
+  /* istanbul ignore if */
   return vnode;
 }
 
 function createComponentInstanceForVnode(vnode, // we know it's MountedComponentVNode but flow doesn't
 parent, // activeInstance in lifecycle state
 parentElm, refElm) {
-  var vnodeComponentOptions = vnode.componentOptions;
   var options = {
     _isComponent: true,
     parent: parent,
-    propsData: vnodeComponentOptions.propsData,
-    _componentTag: vnodeComponentOptions.tag,
     _parentVnode: vnode,
-    _parentListeners: vnodeComponentOptions.listeners,
-    _renderChildren: vnodeComponentOptions.children,
     _parentElm: parentElm || null,
     _refElm: refElm || null
   };
@@ -3808,7 +3838,7 @@ parentElm, refElm) {
     options.render = inlineTemplate.render;
     options.staticRenderFns = inlineTemplate.staticRenderFns;
   }
-  return new vnodeComponentOptions.Ctor(options);
+  return new vnode.componentOptions.Ctor(options);
 }
 
 function mergeHooks(data) {
@@ -3877,7 +3907,9 @@ function _createElement(context, tag, data, children, normalizationType) {
   }
   // warn against non-primitive key
   if ("development" !== 'production' && isDef(data) && isDef(data.key) && !isPrimitive(data.key)) {
-    warn('Avoid using non-primitive value as key, ' + 'use string/number value instead.', context);
+    {
+      warn('Avoid using non-primitive value as key, ' + 'use string/number value instead.', context);
+    }
   }
   // support single function children as default scoped slot
   if (Array.isArray(children) && typeof children[0] === 'function') {
@@ -4109,14 +4141,18 @@ function initMixin(Vue) {
 function initInternalComponent(vm, options) {
   var opts = vm.$options = Object.create(vm.constructor.options);
   // doing this because it's faster than dynamic enumeration.
+  var parentVnode = options._parentVnode;
   opts.parent = options.parent;
-  opts.propsData = options.propsData;
-  opts._parentVnode = options._parentVnode;
-  opts._parentListeners = options._parentListeners;
-  opts._renderChildren = options._renderChildren;
-  opts._componentTag = options._componentTag;
+  opts._parentVnode = parentVnode;
   opts._parentElm = options._parentElm;
   opts._refElm = options._refElm;
+
+  var vnodeComponentOptions = parentVnode.componentOptions;
+  opts.propsData = vnodeComponentOptions.propsData;
+  opts._parentListeners = vnodeComponentOptions.listeners;
+  opts._renderChildren = vnodeComponentOptions.children;
+  opts._componentTag = vnodeComponentOptions.tag;
+
   if (options.render) {
     opts.render = options.render;
     opts.staticRenderFns = options.staticRenderFns;
@@ -4250,10 +4286,8 @@ function initExtend(Vue) {
     }
 
     var name = extendOptions.name || Super.options.name;
-    if ("development" !== 'production') {
-      if (!/^[a-zA-Z][\w-]*$/.test(name)) {
-        warn('Invalid component name: "' + name + '". Component names ' + 'can only contain alphanumeric characters and the hyphen, ' + 'and must start with a letter.');
-      }
+    if ("development" !== 'production' && name) {
+      validateComponentName(name);
     }
 
     var Sub = function VueComponent(options) {
@@ -4329,10 +4363,8 @@ function initAssetRegisters(Vue) {
         return this.options[type + 's'][id];
       } else {
         /* istanbul ignore if */
-        if ("development" !== 'production') {
-          if (type === 'component' && config.isReservedTag(id)) {
-            warn('Do not use built-in or reserved HTML elements as component ' + 'id: ' + id);
-          }
+        if ("development" !== 'production' && type === 'component') {
+          validateComponentName(id);
         }
         if (type === 'component' && isPlainObject(definition)) {
           definition.name = definition.name || id;
@@ -4536,7 +4568,7 @@ Object.defineProperty(Vue$3.prototype, '$ssrContext', {
   }
 });
 
-Vue$3.version = '2.5.9';
+Vue$3.version = '2.5.13';
 
 /*  */
 
@@ -4576,12 +4608,12 @@ function genClassForVnode(vnode) {
   var childNode = vnode;
   while (isDef(childNode.componentInstance)) {
     childNode = childNode.componentInstance._vnode;
-    if (childNode.data) {
+    if (childNode && childNode.data) {
       data = mergeClassData(childNode.data, data);
     }
   }
   while (isDef(parentNode = parentNode.parent)) {
-    if (parentNode.data) {
+    if (parentNode && parentNode.data) {
       data = mergeClassData(data, parentNode.data);
     }
   }
@@ -5042,11 +5074,14 @@ function createPatchFunction(backend) {
 
   function createChildren(vnode, children, insertedVnodeQueue) {
     if (Array.isArray(children)) {
+      if ("development" !== 'production') {
+        checkDuplicateKeys(children);
+      }
       for (var i = 0; i < children.length; ++i) {
         createElm(children[i], insertedVnodeQueue, vnode.elm, null, true);
       }
     } else if (isPrimitive(vnode.text)) {
-      nodeOps.appendChild(vnode.elm, nodeOps.createTextNode(vnode.text));
+      nodeOps.appendChild(vnode.elm, nodeOps.createTextNode(String(vnode.text)));
     }
   }
 
@@ -5178,6 +5213,10 @@ function createPatchFunction(backend) {
     // during leaving transitions
     var canMove = !removeOnly;
 
+    if ("development" !== 'production') {
+      checkDuplicateKeys(newCh);
+    }
+
     while (oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx) {
       if (isUndef(oldStartVnode)) {
         oldStartVnode = oldCh[++oldStartIdx]; // Vnode has been moved left
@@ -5213,10 +5252,6 @@ function createPatchFunction(backend) {
           createElm(newStartVnode, insertedVnodeQueue, parentElm, oldStartVnode.elm);
         } else {
           vnodeToMove = oldCh[idxInOld];
-          /* istanbul ignore if */
-          if ("development" !== 'production' && !vnodeToMove) {
-            warn('It seems there are duplicate keys that is causing an update error. ' + 'Make sure each v-for item has a unique key.');
-          }
           if (sameVnode(vnodeToMove, newStartVnode)) {
             patchVnode(vnodeToMove, newStartVnode, insertedVnodeQueue);
             oldCh[idxInOld] = undefined;
@@ -5234,6 +5269,21 @@ function createPatchFunction(backend) {
       addVnodes(parentElm, refElm, newCh, newStartIdx, newEndIdx, insertedVnodeQueue);
     } else if (newStartIdx > newEndIdx) {
       removeVnodes(parentElm, oldCh, oldStartIdx, oldEndIdx);
+    }
+  }
+
+  function checkDuplicateKeys(children) {
+    var seenKeys = {};
+    for (var i = 0; i < children.length; i++) {
+      var vnode = children[i];
+      var key = vnode.key;
+      if (isDef(key)) {
+        if (seenKeys[key]) {
+          warn("Duplicate keys detected: '" + key + "'. This may cause an update error.", vnode.context);
+        } else {
+          seenKeys[key] = true;
+        }
+      }
     }
   }
 
@@ -5609,17 +5659,20 @@ var emptyModifiers = Object.create(null);
 function normalizeDirectives$1(dirs, vm) {
   var res = Object.create(null);
   if (!dirs) {
+    // $flow-disable-line
     return res;
   }
   var i, dir;
   for (i = 0; i < dirs.length; i++) {
     dir = dirs[i];
     if (!dir.modifiers) {
+      // $flow-disable-line
       dir.modifiers = emptyModifiers;
     }
     res[getRawDirName(dir)] = dir;
     dir.def = resolveAsset(vm.$options, 'directives', dir.name, true);
   }
+  // $flow-disable-line
   return res;
 }
 
@@ -5763,6 +5816,9 @@ var klass = {
 /*  */
 
 /*  */
+
+// add a raw attr (use this in preTransforms)
+
 
 // note: this only removes the attr from the Array (attrsList) so that it
 // doesn't get processed by processAttrs.
@@ -5908,10 +5964,10 @@ function updateDOMProps(oldVnode, vnode) {
 
 
 function shouldUpdateValue(elm, checkVal) {
-  return !elm.composing && (elm.tagName === 'OPTION' || isDirty(elm, checkVal) || isInputChanged(elm, checkVal));
+  return !elm.composing && (elm.tagName === 'OPTION' || isNotInFocusAndDirty(elm, checkVal) || isDirtyWithModifiers(elm, checkVal));
 }
 
-function isDirty(elm, checkVal) {
+function isNotInFocusAndDirty(elm, checkVal) {
   // return true when textbox (.number and .trim) loses focus and its value is
   // not equal to the updated value
   var notInFocus = true;
@@ -5923,14 +5979,20 @@ function isDirty(elm, checkVal) {
   return notInFocus && elm.value !== checkVal;
 }
 
-function isInputChanged(elm, newVal) {
+function isDirtyWithModifiers(elm, newVal) {
   var value = elm.value;
   var modifiers = elm._vModifiers; // injected by v-model runtime
-  if (isDef(modifiers) && modifiers.number) {
-    return toNumber(value) !== toNumber(newVal);
-  }
-  if (isDef(modifiers) && modifiers.trim) {
-    return value.trim() !== newVal.trim();
+  if (isDef(modifiers)) {
+    if (modifiers.lazy) {
+      // inputs with lazy should only be updated when not in focus
+      return false;
+    }
+    if (modifiers.number) {
+      return toNumber(value) !== toNumber(newVal);
+    }
+    if (modifiers.trim) {
+      return value.trim() !== newVal.trim();
+    }
   }
   return value !== newVal;
 }
@@ -5986,7 +6048,7 @@ function getStyle(vnode, checkChild) {
     var childNode = vnode;
     while (childNode.componentInstance) {
       childNode = childNode.componentInstance._vnode;
-      if (childNode.data && (styleData = normalizeStyleData(childNode.data))) {
+      if (childNode && childNode.data && (styleData = normalizeStyleData(childNode.data))) {
         extend(res, styleData);
       }
     }
@@ -7057,7 +7119,7 @@ var TransitionGroup = {
   beforeUpdate: function beforeUpdate() {
     // force removing pass
     this.__patch__(this._vnode, this.kept, false, // hydrating
-    true // removeOnly (!important, avoids unnecessary moves)
+    true // removeOnly (!important avoids unnecessary moves)
     );
     this._vnode = this.kept;
   },
@@ -7200,15 +7262,18 @@ Vue$3.nextTick(function () {
 
 /*  */
 
-module.exports = Vue$3;
-},{}],17:[function(require,module,exports) {
+exports.default = Vue$3;
+},{}],14:[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
 /**
  * vuex v3.0.1
  * (c) 2017 Evan You
  * @license MIT
  */
-'use strict';
-
 var applyMixin = function (Vue) {
   var version = Number(Vue.version.split('.')[0]);
 
@@ -8137,7 +8202,7 @@ function getModuleByNamespace(store, helper, namespace) {
   return module;
 }
 
-var index = {
+var index_esm = {
   Store: Store,
   install: install,
   version: '3.0.1',
@@ -8148,8 +8213,15 @@ var index = {
   createNamespacedHelpers: createNamespacedHelpers
 };
 
-module.exports = index;
-},{}],18:[function(require,module,exports) {
+exports.Store = Store;
+exports.install = install;
+exports.mapState = mapState;
+exports.mapMutations = mapMutations;
+exports.mapGetters = mapGetters;
+exports.mapActions = mapActions;
+exports.createNamespacedHelpers = createNamespacedHelpers;
+exports.default = index_esm;
+},{}],15:[function(require,module,exports) {
 var global = (1,eval)("this");
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
@@ -8274,7 +8346,7 @@ return createLogger;
 
 })));
 
-},{}],25:[function(require,module,exports) {
+},{}],41:[function(require,module,exports) {
 'use strict';
 
 module.exports = function bind(fn, thisArg) {
@@ -8287,7 +8359,7 @@ module.exports = function bind(fn, thisArg) {
   };
 };
 
-},{}],43:[function(require,module,exports) {
+},{}],49:[function(require,module,exports) {
 /*!
  * Determine if an object is a Buffer
  *
@@ -8310,7 +8382,7 @@ function isSlowBuffer (obj) {
   return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
 }
 
-},{}],23:[function(require,module,exports) {
+},{}],38:[function(require,module,exports) {
 'use strict';
 
 var bind = require('./helpers/bind');
@@ -8615,7 +8687,555 @@ module.exports = {
   trim: trim
 };
 
-},{"./helpers/bind":25,"is-buffer":43}],31:[function(require,module,exports) {
+},{"./helpers/bind":41,"is-buffer":49}],52:[function(require,module,exports) {
+'use strict';
+
+var utils = require('../utils');
+
+module.exports = function normalizeHeaderName(headers, normalizedName) {
+  utils.forEach(headers, function processHeader(value, name) {
+    if (name !== normalizedName && name.toUpperCase() === normalizedName.toUpperCase()) {
+      headers[normalizedName] = value;
+      delete headers[name];
+    }
+  });
+};
+
+},{"../utils":38}],63:[function(require,module,exports) {
+'use strict';
+
+/**
+ * Update an Error with the specified config, error code, and response.
+ *
+ * @param {Error} error The error to update.
+ * @param {Object} config The config.
+ * @param {string} [code] The error code (for example, 'ECONNABORTED').
+ * @param {Object} [request] The request.
+ * @param {Object} [response] The response.
+ * @returns {Error} The error.
+ */
+module.exports = function enhanceError(error, config, code, request, response) {
+  error.config = config;
+  if (code) {
+    error.code = code;
+  }
+  error.request = request;
+  error.response = response;
+  return error;
+};
+
+},{}],60:[function(require,module,exports) {
+'use strict';
+
+var enhanceError = require('./enhanceError');
+
+/**
+ * Create an Error with the specified message, config, error code, request and response.
+ *
+ * @param {string} message The error message.
+ * @param {Object} config The config.
+ * @param {string} [code] The error code (for example, 'ECONNABORTED').
+ * @param {Object} [request] The request.
+ * @param {Object} [response] The response.
+ * @returns {Error} The created error.
+ */
+module.exports = function createError(message, config, code, request, response) {
+  var error = new Error(message);
+  return enhanceError(error, config, code, request, response);
+};
+
+},{"./enhanceError":63}],56:[function(require,module,exports) {
+'use strict';
+
+var createError = require('./createError');
+
+/**
+ * Resolve or reject a Promise based on response status.
+ *
+ * @param {Function} resolve A function that resolves the promise.
+ * @param {Function} reject A function that rejects the promise.
+ * @param {object} response The response.
+ */
+module.exports = function settle(resolve, reject, response) {
+  var validateStatus = response.config.validateStatus;
+  // Note: status is not exposed by XDomainRequest
+  if (!response.status || !validateStatus || validateStatus(response.status)) {
+    resolve(response);
+  } else {
+    reject(createError(
+      'Request failed with status code ' + response.status,
+      response.config,
+      null,
+      response.request,
+      response
+    ));
+  }
+};
+
+},{"./createError":60}],57:[function(require,module,exports) {
+'use strict';
+
+var utils = require('./../utils');
+
+function encode(val) {
+  return encodeURIComponent(val).
+    replace(/%40/gi, '@').
+    replace(/%3A/gi, ':').
+    replace(/%24/g, '$').
+    replace(/%2C/gi, ',').
+    replace(/%20/g, '+').
+    replace(/%5B/gi, '[').
+    replace(/%5D/gi, ']');
+}
+
+/**
+ * Build a URL by appending params to the end
+ *
+ * @param {string} url The base of the url (e.g., http://www.google.com)
+ * @param {object} [params] The params to be appended
+ * @returns {string} The formatted url
+ */
+module.exports = function buildURL(url, params, paramsSerializer) {
+  /*eslint no-param-reassign:0*/
+  if (!params) {
+    return url;
+  }
+
+  var serializedParams;
+  if (paramsSerializer) {
+    serializedParams = paramsSerializer(params);
+  } else if (utils.isURLSearchParams(params)) {
+    serializedParams = params.toString();
+  } else {
+    var parts = [];
+
+    utils.forEach(params, function serialize(val, key) {
+      if (val === null || typeof val === 'undefined') {
+        return;
+      }
+
+      if (utils.isArray(val)) {
+        key = key + '[]';
+      }
+
+      if (!utils.isArray(val)) {
+        val = [val];
+      }
+
+      utils.forEach(val, function parseValue(v) {
+        if (utils.isDate(v)) {
+          v = v.toISOString();
+        } else if (utils.isObject(v)) {
+          v = JSON.stringify(v);
+        }
+        parts.push(encode(key) + '=' + encode(v));
+      });
+    });
+
+    serializedParams = parts.join('&');
+  }
+
+  if (serializedParams) {
+    url += (url.indexOf('?') === -1 ? '?' : '&') + serializedParams;
+  }
+
+  return url;
+};
+
+},{"./../utils":38}],58:[function(require,module,exports) {
+'use strict';
+
+var utils = require('./../utils');
+
+// Headers whose duplicates are ignored by node
+// c.f. https://nodejs.org/api/http.html#http_message_headers
+var ignoreDuplicateOf = [
+  'age', 'authorization', 'content-length', 'content-type', 'etag',
+  'expires', 'from', 'host', 'if-modified-since', 'if-unmodified-since',
+  'last-modified', 'location', 'max-forwards', 'proxy-authorization',
+  'referer', 'retry-after', 'user-agent'
+];
+
+/**
+ * Parse headers into an object
+ *
+ * ```
+ * Date: Wed, 27 Aug 2014 08:58:49 GMT
+ * Content-Type: application/json
+ * Connection: keep-alive
+ * Transfer-Encoding: chunked
+ * ```
+ *
+ * @param {String} headers Headers needing to be parsed
+ * @returns {Object} Headers parsed into an object
+ */
+module.exports = function parseHeaders(headers) {
+  var parsed = {};
+  var key;
+  var val;
+  var i;
+
+  if (!headers) { return parsed; }
+
+  utils.forEach(headers.split('\n'), function parser(line) {
+    i = line.indexOf(':');
+    key = utils.trim(line.substr(0, i)).toLowerCase();
+    val = utils.trim(line.substr(i + 1));
+
+    if (key) {
+      if (parsed[key] && ignoreDuplicateOf.indexOf(key) >= 0) {
+        return;
+      }
+      if (key === 'set-cookie') {
+        parsed[key] = (parsed[key] ? parsed[key] : []).concat([val]);
+      } else {
+        parsed[key] = parsed[key] ? parsed[key] + ', ' + val : val;
+      }
+    }
+  });
+
+  return parsed;
+};
+
+},{"./../utils":38}],59:[function(require,module,exports) {
+'use strict';
+
+var utils = require('./../utils');
+
+module.exports = (
+  utils.isStandardBrowserEnv() ?
+
+  // Standard browser envs have full support of the APIs needed to test
+  // whether the request URL is of the same origin as current location.
+  (function standardBrowserEnv() {
+    var msie = /(msie|trident)/i.test(navigator.userAgent);
+    var urlParsingNode = document.createElement('a');
+    var originURL;
+
+    /**
+    * Parse a URL to discover it's components
+    *
+    * @param {String} url The URL to be parsed
+    * @returns {Object}
+    */
+    function resolveURL(url) {
+      var href = url;
+
+      if (msie) {
+        // IE needs attribute set twice to normalize properties
+        urlParsingNode.setAttribute('href', href);
+        href = urlParsingNode.href;
+      }
+
+      urlParsingNode.setAttribute('href', href);
+
+      // urlParsingNode provides the UrlUtils interface - http://url.spec.whatwg.org/#urlutils
+      return {
+        href: urlParsingNode.href,
+        protocol: urlParsingNode.protocol ? urlParsingNode.protocol.replace(/:$/, '') : '',
+        host: urlParsingNode.host,
+        search: urlParsingNode.search ? urlParsingNode.search.replace(/^\?/, '') : '',
+        hash: urlParsingNode.hash ? urlParsingNode.hash.replace(/^#/, '') : '',
+        hostname: urlParsingNode.hostname,
+        port: urlParsingNode.port,
+        pathname: (urlParsingNode.pathname.charAt(0) === '/') ?
+                  urlParsingNode.pathname :
+                  '/' + urlParsingNode.pathname
+      };
+    }
+
+    originURL = resolveURL(window.location.href);
+
+    /**
+    * Determine if a URL shares the same origin as the current location
+    *
+    * @param {String} requestURL The URL to test
+    * @returns {boolean} True if URL shares the same origin, otherwise false
+    */
+    return function isURLSameOrigin(requestURL) {
+      var parsed = (utils.isString(requestURL)) ? resolveURL(requestURL) : requestURL;
+      return (parsed.protocol === originURL.protocol &&
+            parsed.host === originURL.host);
+    };
+  })() :
+
+  // Non standard browser envs (web workers, react-native) lack needed support.
+  (function nonStandardBrowserEnv() {
+    return function isURLSameOrigin() {
+      return true;
+    };
+  })()
+);
+
+},{"./../utils":38}],61:[function(require,module,exports) {
+'use strict';
+
+// btoa polyfill for IE<10 courtesy https://github.com/davidchambers/Base64.js
+
+var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+
+function E() {
+  this.message = 'String contains an invalid character';
+}
+E.prototype = new Error;
+E.prototype.code = 5;
+E.prototype.name = 'InvalidCharacterError';
+
+function btoa(input) {
+  var str = String(input);
+  var output = '';
+  for (
+    // initialize result and counter
+    var block, charCode, idx = 0, map = chars;
+    // if the next str index does not exist:
+    //   change the mapping table to "="
+    //   check if d has no fractional digits
+    str.charAt(idx | 0) || (map = '=', idx % 1);
+    // "8 - idx % 1 * 8" generates the sequence 2, 4, 6, 8
+    output += map.charAt(63 & block >> 8 - idx % 1 * 8)
+  ) {
+    charCode = str.charCodeAt(idx += 3 / 4);
+    if (charCode > 0xFF) {
+      throw new E();
+    }
+    block = block << 8 | charCode;
+  }
+  return output;
+}
+
+module.exports = btoa;
+
+},{}],62:[function(require,module,exports) {
+'use strict';
+
+var utils = require('./../utils');
+
+module.exports = (
+  utils.isStandardBrowserEnv() ?
+
+  // Standard browser envs support document.cookie
+  (function standardBrowserEnv() {
+    return {
+      write: function write(name, value, expires, path, domain, secure) {
+        var cookie = [];
+        cookie.push(name + '=' + encodeURIComponent(value));
+
+        if (utils.isNumber(expires)) {
+          cookie.push('expires=' + new Date(expires).toGMTString());
+        }
+
+        if (utils.isString(path)) {
+          cookie.push('path=' + path);
+        }
+
+        if (utils.isString(domain)) {
+          cookie.push('domain=' + domain);
+        }
+
+        if (secure === true) {
+          cookie.push('secure');
+        }
+
+        document.cookie = cookie.join('; ');
+      },
+
+      read: function read(name) {
+        var match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
+        return (match ? decodeURIComponent(match[3]) : null);
+      },
+
+      remove: function remove(name) {
+        this.write(name, '', Date.now() - 86400000);
+      }
+    };
+  })() :
+
+  // Non standard browser env (web workers, react-native) lack needed support.
+  (function nonStandardBrowserEnv() {
+    return {
+      write: function write() {},
+      read: function read() { return null; },
+      remove: function remove() {}
+    };
+  })()
+);
+
+},{"./../utils":38}],51:[function(require,module,exports) {
+'use strict';
+
+var utils = require('./../utils');
+var settle = require('./../core/settle');
+var buildURL = require('./../helpers/buildURL');
+var parseHeaders = require('./../helpers/parseHeaders');
+var isURLSameOrigin = require('./../helpers/isURLSameOrigin');
+var createError = require('../core/createError');
+var btoa = typeof window !== 'undefined' && window.btoa && window.btoa.bind(window) || require('./../helpers/btoa');
+
+module.exports = function xhrAdapter(config) {
+  return new Promise(function dispatchXhrRequest(resolve, reject) {
+    var requestData = config.data;
+    var requestHeaders = config.headers;
+
+    if (utils.isFormData(requestData)) {
+      delete requestHeaders['Content-Type']; // Let the browser set it
+    }
+
+    var request = new XMLHttpRequest();
+    var loadEvent = 'onreadystatechange';
+    var xDomain = false;
+
+    // For IE 8/9 CORS support
+    // Only supports POST and GET calls and doesn't returns the response headers.
+    // DON'T do this for testing b/c XMLHttpRequest is mocked, not XDomainRequest.
+    if ("development" !== 'test' && typeof window !== 'undefined' && window.XDomainRequest && !('withCredentials' in request) && !isURLSameOrigin(config.url)) {
+      request = new window.XDomainRequest();
+      loadEvent = 'onload';
+      xDomain = true;
+      request.onprogress = function handleProgress() {};
+      request.ontimeout = function handleTimeout() {};
+    }
+
+    // HTTP basic authentication
+    if (config.auth) {
+      var username = config.auth.username || '';
+      var password = config.auth.password || '';
+      requestHeaders.Authorization = 'Basic ' + btoa(username + ':' + password);
+    }
+
+    request.open(config.method.toUpperCase(), buildURL(config.url, config.params, config.paramsSerializer), true);
+
+    // Set the request timeout in MS
+    request.timeout = config.timeout;
+
+    // Listen for ready state
+    request[loadEvent] = function handleLoad() {
+      if (!request || request.readyState !== 4 && !xDomain) {
+        return;
+      }
+
+      // The request errored out and we didn't get a response, this will be
+      // handled by onerror instead
+      // With one exception: request that using file: protocol, most browsers
+      // will return status as 0 even though it's a successful request
+      if (request.status === 0 && !(request.responseURL && request.responseURL.indexOf('file:') === 0)) {
+        return;
+      }
+
+      // Prepare the response
+      var responseHeaders = 'getAllResponseHeaders' in request ? parseHeaders(request.getAllResponseHeaders()) : null;
+      var responseData = !config.responseType || config.responseType === 'text' ? request.responseText : request.response;
+      var response = {
+        data: responseData,
+        // IE sends 1223 instead of 204 (https://github.com/axios/axios/issues/201)
+        status: request.status === 1223 ? 204 : request.status,
+        statusText: request.status === 1223 ? 'No Content' : request.statusText,
+        headers: responseHeaders,
+        config: config,
+        request: request
+      };
+
+      settle(resolve, reject, response);
+
+      // Clean up request
+      request = null;
+    };
+
+    // Handle low level network errors
+    request.onerror = function handleError() {
+      // Real errors are hidden from us by the browser
+      // onerror should only fire if it's a network error
+      reject(createError('Network Error', config, null, request));
+
+      // Clean up request
+      request = null;
+    };
+
+    // Handle timeout
+    request.ontimeout = function handleTimeout() {
+      reject(createError('timeout of ' + config.timeout + 'ms exceeded', config, 'ECONNABORTED', request));
+
+      // Clean up request
+      request = null;
+    };
+
+    // Add xsrf header
+    // This is only done if running in a standard browser environment.
+    // Specifically not if we're in a web worker, or react-native.
+    if (utils.isStandardBrowserEnv()) {
+      var cookies = require('./../helpers/cookies');
+
+      // Add xsrf header
+      var xsrfValue = (config.withCredentials || isURLSameOrigin(config.url)) && config.xsrfCookieName ? cookies.read(config.xsrfCookieName) : undefined;
+
+      if (xsrfValue) {
+        requestHeaders[config.xsrfHeaderName] = xsrfValue;
+      }
+    }
+
+    // Add headers to the request
+    if ('setRequestHeader' in request) {
+      utils.forEach(requestHeaders, function setRequestHeader(val, key) {
+        if (typeof requestData === 'undefined' && key.toLowerCase() === 'content-type') {
+          // Remove Content-Type if data is undefined
+          delete requestHeaders[key];
+        } else {
+          // Otherwise add header to the request
+          request.setRequestHeader(key, val);
+        }
+      });
+    }
+
+    // Add withCredentials to request if needed
+    if (config.withCredentials) {
+      request.withCredentials = true;
+    }
+
+    // Add responseType to request if needed
+    if (config.responseType) {
+      try {
+        request.responseType = config.responseType;
+      } catch (e) {
+        // Expected DOMException thrown by browsers not compatible XMLHttpRequest Level 2.
+        // But, this can be suppressed for 'json' type as it can be parsed by default 'transformResponse' function.
+        if (config.responseType !== 'json') {
+          throw e;
+        }
+      }
+    }
+
+    // Handle progress if needed
+    if (typeof config.onDownloadProgress === 'function') {
+      request.addEventListener('progress', config.onDownloadProgress);
+    }
+
+    // Not all browsers support upload events
+    if (typeof config.onUploadProgress === 'function' && request.upload) {
+      request.upload.addEventListener('progress', config.onUploadProgress);
+    }
+
+    if (config.cancelToken) {
+      // Handle cancellation
+      config.cancelToken.promise.then(function onCanceled(cancel) {
+        if (!request) {
+          return;
+        }
+
+        request.abort();
+        reject(cancel);
+        // Clean up request
+        request = null;
+      });
+    }
+
+    if (requestData === undefined) {
+      requestData = null;
+    }
+
+    // Send the request
+    request.send(requestData);
+  });
+};
+},{"./../utils":38,"./../core/settle":56,"./../helpers/buildURL":57,"./../helpers/parseHeaders":58,"./../helpers/isURLSameOrigin":59,"../core/createError":60,"./../helpers/btoa":61,"./../helpers/cookies":62}],50:[function(require,module,exports) {
 
 // shim for using process in browser
 var process = module.exports = {};
@@ -8802,555 +9422,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],47:[function(require,module,exports) {
-'use strict';
-
-/**
- * Update an Error with the specified config, error code, and response.
- *
- * @param {Error} error The error to update.
- * @param {Object} config The config.
- * @param {string} [code] The error code (for example, 'ECONNABORTED').
- * @param {Object} [request] The request.
- * @param {Object} [response] The response.
- * @returns {Error} The error.
- */
-module.exports = function enhanceError(error, config, code, request, response) {
-  error.config = config;
-  if (code) {
-    error.code = code;
-  }
-  error.request = request;
-  error.response = response;
-  return error;
-};
-
-},{}],40:[function(require,module,exports) {
-'use strict';
-
-var enhanceError = require('./enhanceError');
-
-/**
- * Create an Error with the specified message, config, error code, request and response.
- *
- * @param {string} message The error message.
- * @param {Object} config The config.
- * @param {string} [code] The error code (for example, 'ECONNABORTED').
- * @param {Object} [request] The request.
- * @param {Object} [response] The response.
- * @returns {Error} The created error.
- */
-module.exports = function createError(message, config, code, request, response) {
-  var error = new Error(message);
-  return enhanceError(error, config, code, request, response);
-};
-
-},{"./enhanceError":47}],36:[function(require,module,exports) {
-'use strict';
-
-var createError = require('./createError');
-
-/**
- * Resolve or reject a Promise based on response status.
- *
- * @param {Function} resolve A function that resolves the promise.
- * @param {Function} reject A function that rejects the promise.
- * @param {object} response The response.
- */
-module.exports = function settle(resolve, reject, response) {
-  var validateStatus = response.config.validateStatus;
-  // Note: status is not exposed by XDomainRequest
-  if (!response.status || !validateStatus || validateStatus(response.status)) {
-    resolve(response);
-  } else {
-    reject(createError(
-      'Request failed with status code ' + response.status,
-      response.config,
-      null,
-      response.request,
-      response
-    ));
-  }
-};
-
-},{"./createError":40}],37:[function(require,module,exports) {
-'use strict';
-
-var utils = require('./../utils');
-
-function encode(val) {
-  return encodeURIComponent(val).
-    replace(/%40/gi, '@').
-    replace(/%3A/gi, ':').
-    replace(/%24/g, '$').
-    replace(/%2C/gi, ',').
-    replace(/%20/g, '+').
-    replace(/%5B/gi, '[').
-    replace(/%5D/gi, ']');
-}
-
-/**
- * Build a URL by appending params to the end
- *
- * @param {string} url The base of the url (e.g., http://www.google.com)
- * @param {object} [params] The params to be appended
- * @returns {string} The formatted url
- */
-module.exports = function buildURL(url, params, paramsSerializer) {
-  /*eslint no-param-reassign:0*/
-  if (!params) {
-    return url;
-  }
-
-  var serializedParams;
-  if (paramsSerializer) {
-    serializedParams = paramsSerializer(params);
-  } else if (utils.isURLSearchParams(params)) {
-    serializedParams = params.toString();
-  } else {
-    var parts = [];
-
-    utils.forEach(params, function serialize(val, key) {
-      if (val === null || typeof val === 'undefined') {
-        return;
-      }
-
-      if (utils.isArray(val)) {
-        key = key + '[]';
-      }
-
-      if (!utils.isArray(val)) {
-        val = [val];
-      }
-
-      utils.forEach(val, function parseValue(v) {
-        if (utils.isDate(v)) {
-          v = v.toISOString();
-        } else if (utils.isObject(v)) {
-          v = JSON.stringify(v);
-        }
-        parts.push(encode(key) + '=' + encode(v));
-      });
-    });
-
-    serializedParams = parts.join('&');
-  }
-
-  if (serializedParams) {
-    url += (url.indexOf('?') === -1 ? '?' : '&') + serializedParams;
-  }
-
-  return url;
-};
-
-},{"./../utils":23}],38:[function(require,module,exports) {
-'use strict';
-
-var utils = require('./../utils');
-
-// Headers whose duplicates are ignored by node
-// c.f. https://nodejs.org/api/http.html#http_message_headers
-var ignoreDuplicateOf = [
-  'age', 'authorization', 'content-length', 'content-type', 'etag',
-  'expires', 'from', 'host', 'if-modified-since', 'if-unmodified-since',
-  'last-modified', 'location', 'max-forwards', 'proxy-authorization',
-  'referer', 'retry-after', 'user-agent'
-];
-
-/**
- * Parse headers into an object
- *
- * ```
- * Date: Wed, 27 Aug 2014 08:58:49 GMT
- * Content-Type: application/json
- * Connection: keep-alive
- * Transfer-Encoding: chunked
- * ```
- *
- * @param {String} headers Headers needing to be parsed
- * @returns {Object} Headers parsed into an object
- */
-module.exports = function parseHeaders(headers) {
-  var parsed = {};
-  var key;
-  var val;
-  var i;
-
-  if (!headers) { return parsed; }
-
-  utils.forEach(headers.split('\n'), function parser(line) {
-    i = line.indexOf(':');
-    key = utils.trim(line.substr(0, i)).toLowerCase();
-    val = utils.trim(line.substr(i + 1));
-
-    if (key) {
-      if (parsed[key] && ignoreDuplicateOf.indexOf(key) >= 0) {
-        return;
-      }
-      if (key === 'set-cookie') {
-        parsed[key] = (parsed[key] ? parsed[key] : []).concat([val]);
-      } else {
-        parsed[key] = parsed[key] ? parsed[key] + ', ' + val : val;
-      }
-    }
-  });
-
-  return parsed;
-};
-
-},{"./../utils":23}],39:[function(require,module,exports) {
-'use strict';
-
-var utils = require('./../utils');
-
-module.exports = (
-  utils.isStandardBrowserEnv() ?
-
-  // Standard browser envs have full support of the APIs needed to test
-  // whether the request URL is of the same origin as current location.
-  (function standardBrowserEnv() {
-    var msie = /(msie|trident)/i.test(navigator.userAgent);
-    var urlParsingNode = document.createElement('a');
-    var originURL;
-
-    /**
-    * Parse a URL to discover it's components
-    *
-    * @param {String} url The URL to be parsed
-    * @returns {Object}
-    */
-    function resolveURL(url) {
-      var href = url;
-
-      if (msie) {
-        // IE needs attribute set twice to normalize properties
-        urlParsingNode.setAttribute('href', href);
-        href = urlParsingNode.href;
-      }
-
-      urlParsingNode.setAttribute('href', href);
-
-      // urlParsingNode provides the UrlUtils interface - http://url.spec.whatwg.org/#urlutils
-      return {
-        href: urlParsingNode.href,
-        protocol: urlParsingNode.protocol ? urlParsingNode.protocol.replace(/:$/, '') : '',
-        host: urlParsingNode.host,
-        search: urlParsingNode.search ? urlParsingNode.search.replace(/^\?/, '') : '',
-        hash: urlParsingNode.hash ? urlParsingNode.hash.replace(/^#/, '') : '',
-        hostname: urlParsingNode.hostname,
-        port: urlParsingNode.port,
-        pathname: (urlParsingNode.pathname.charAt(0) === '/') ?
-                  urlParsingNode.pathname :
-                  '/' + urlParsingNode.pathname
-      };
-    }
-
-    originURL = resolveURL(window.location.href);
-
-    /**
-    * Determine if a URL shares the same origin as the current location
-    *
-    * @param {String} requestURL The URL to test
-    * @returns {boolean} True if URL shares the same origin, otherwise false
-    */
-    return function isURLSameOrigin(requestURL) {
-      var parsed = (utils.isString(requestURL)) ? resolveURL(requestURL) : requestURL;
-      return (parsed.protocol === originURL.protocol &&
-            parsed.host === originURL.host);
-    };
-  })() :
-
-  // Non standard browser envs (web workers, react-native) lack needed support.
-  (function nonStandardBrowserEnv() {
-    return function isURLSameOrigin() {
-      return true;
-    };
-  })()
-);
-
-},{"./../utils":23}],41:[function(require,module,exports) {
-'use strict';
-
-// btoa polyfill for IE<10 courtesy https://github.com/davidchambers/Base64.js
-
-var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-
-function E() {
-  this.message = 'String contains an invalid character';
-}
-E.prototype = new Error;
-E.prototype.code = 5;
-E.prototype.name = 'InvalidCharacterError';
-
-function btoa(input) {
-  var str = String(input);
-  var output = '';
-  for (
-    // initialize result and counter
-    var block, charCode, idx = 0, map = chars;
-    // if the next str index does not exist:
-    //   change the mapping table to "="
-    //   check if d has no fractional digits
-    str.charAt(idx | 0) || (map = '=', idx % 1);
-    // "8 - idx % 1 * 8" generates the sequence 2, 4, 6, 8
-    output += map.charAt(63 & block >> 8 - idx % 1 * 8)
-  ) {
-    charCode = str.charCodeAt(idx += 3 / 4);
-    if (charCode > 0xFF) {
-      throw new E();
-    }
-    block = block << 8 | charCode;
-  }
-  return output;
-}
-
-module.exports = btoa;
-
-},{}],42:[function(require,module,exports) {
-'use strict';
-
-var utils = require('./../utils');
-
-module.exports = (
-  utils.isStandardBrowserEnv() ?
-
-  // Standard browser envs support document.cookie
-  (function standardBrowserEnv() {
-    return {
-      write: function write(name, value, expires, path, domain, secure) {
-        var cookie = [];
-        cookie.push(name + '=' + encodeURIComponent(value));
-
-        if (utils.isNumber(expires)) {
-          cookie.push('expires=' + new Date(expires).toGMTString());
-        }
-
-        if (utils.isString(path)) {
-          cookie.push('path=' + path);
-        }
-
-        if (utils.isString(domain)) {
-          cookie.push('domain=' + domain);
-        }
-
-        if (secure === true) {
-          cookie.push('secure');
-        }
-
-        document.cookie = cookie.join('; ');
-      },
-
-      read: function read(name) {
-        var match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
-        return (match ? decodeURIComponent(match[3]) : null);
-      },
-
-      remove: function remove(name) {
-        this.write(name, '', Date.now() - 86400000);
-      }
-    };
-  })() :
-
-  // Non standard browser env (web workers, react-native) lack needed support.
-  (function nonStandardBrowserEnv() {
-    return {
-      write: function write() {},
-      read: function read() { return null; },
-      remove: function remove() {}
-    };
-  })()
-);
-
-},{"./../utils":23}],32:[function(require,module,exports) {
-'use strict';
-
-var utils = require('./../utils');
-var settle = require('./../core/settle');
-var buildURL = require('./../helpers/buildURL');
-var parseHeaders = require('./../helpers/parseHeaders');
-var isURLSameOrigin = require('./../helpers/isURLSameOrigin');
-var createError = require('../core/createError');
-var btoa = typeof window !== 'undefined' && window.btoa && window.btoa.bind(window) || require('./../helpers/btoa');
-
-module.exports = function xhrAdapter(config) {
-  return new Promise(function dispatchXhrRequest(resolve, reject) {
-    var requestData = config.data;
-    var requestHeaders = config.headers;
-
-    if (utils.isFormData(requestData)) {
-      delete requestHeaders['Content-Type']; // Let the browser set it
-    }
-
-    var request = new XMLHttpRequest();
-    var loadEvent = 'onreadystatechange';
-    var xDomain = false;
-
-    // For IE 8/9 CORS support
-    // Only supports POST and GET calls and doesn't returns the response headers.
-    // DON'T do this for testing b/c XMLHttpRequest is mocked, not XDomainRequest.
-    if ("development" !== 'test' && typeof window !== 'undefined' && window.XDomainRequest && !('withCredentials' in request) && !isURLSameOrigin(config.url)) {
-      request = new window.XDomainRequest();
-      loadEvent = 'onload';
-      xDomain = true;
-      request.onprogress = function handleProgress() {};
-      request.ontimeout = function handleTimeout() {};
-    }
-
-    // HTTP basic authentication
-    if (config.auth) {
-      var username = config.auth.username || '';
-      var password = config.auth.password || '';
-      requestHeaders.Authorization = 'Basic ' + btoa(username + ':' + password);
-    }
-
-    request.open(config.method.toUpperCase(), buildURL(config.url, config.params, config.paramsSerializer), true);
-
-    // Set the request timeout in MS
-    request.timeout = config.timeout;
-
-    // Listen for ready state
-    request[loadEvent] = function handleLoad() {
-      if (!request || request.readyState !== 4 && !xDomain) {
-        return;
-      }
-
-      // The request errored out and we didn't get a response, this will be
-      // handled by onerror instead
-      // With one exception: request that using file: protocol, most browsers
-      // will return status as 0 even though it's a successful request
-      if (request.status === 0 && !(request.responseURL && request.responseURL.indexOf('file:') === 0)) {
-        return;
-      }
-
-      // Prepare the response
-      var responseHeaders = 'getAllResponseHeaders' in request ? parseHeaders(request.getAllResponseHeaders()) : null;
-      var responseData = !config.responseType || config.responseType === 'text' ? request.responseText : request.response;
-      var response = {
-        data: responseData,
-        // IE sends 1223 instead of 204 (https://github.com/axios/axios/issues/201)
-        status: request.status === 1223 ? 204 : request.status,
-        statusText: request.status === 1223 ? 'No Content' : request.statusText,
-        headers: responseHeaders,
-        config: config,
-        request: request
-      };
-
-      settle(resolve, reject, response);
-
-      // Clean up request
-      request = null;
-    };
-
-    // Handle low level network errors
-    request.onerror = function handleError() {
-      // Real errors are hidden from us by the browser
-      // onerror should only fire if it's a network error
-      reject(createError('Network Error', config, null, request));
-
-      // Clean up request
-      request = null;
-    };
-
-    // Handle timeout
-    request.ontimeout = function handleTimeout() {
-      reject(createError('timeout of ' + config.timeout + 'ms exceeded', config, 'ECONNABORTED', request));
-
-      // Clean up request
-      request = null;
-    };
-
-    // Add xsrf header
-    // This is only done if running in a standard browser environment.
-    // Specifically not if we're in a web worker, or react-native.
-    if (utils.isStandardBrowserEnv()) {
-      var cookies = require('./../helpers/cookies');
-
-      // Add xsrf header
-      var xsrfValue = (config.withCredentials || isURLSameOrigin(config.url)) && config.xsrfCookieName ? cookies.read(config.xsrfCookieName) : undefined;
-
-      if (xsrfValue) {
-        requestHeaders[config.xsrfHeaderName] = xsrfValue;
-      }
-    }
-
-    // Add headers to the request
-    if ('setRequestHeader' in request) {
-      utils.forEach(requestHeaders, function setRequestHeader(val, key) {
-        if (typeof requestData === 'undefined' && key.toLowerCase() === 'content-type') {
-          // Remove Content-Type if data is undefined
-          delete requestHeaders[key];
-        } else {
-          // Otherwise add header to the request
-          request.setRequestHeader(key, val);
-        }
-      });
-    }
-
-    // Add withCredentials to request if needed
-    if (config.withCredentials) {
-      request.withCredentials = true;
-    }
-
-    // Add responseType to request if needed
-    if (config.responseType) {
-      try {
-        request.responseType = config.responseType;
-      } catch (e) {
-        // Expected DOMException thrown by browsers not compatible XMLHttpRequest Level 2.
-        // But, this can be suppressed for 'json' type as it can be parsed by default 'transformResponse' function.
-        if (config.responseType !== 'json') {
-          throw e;
-        }
-      }
-    }
-
-    // Handle progress if needed
-    if (typeof config.onDownloadProgress === 'function') {
-      request.addEventListener('progress', config.onDownloadProgress);
-    }
-
-    // Not all browsers support upload events
-    if (typeof config.onUploadProgress === 'function' && request.upload) {
-      request.upload.addEventListener('progress', config.onUploadProgress);
-    }
-
-    if (config.cancelToken) {
-      // Handle cancellation
-      config.cancelToken.promise.then(function onCanceled(cancel) {
-        if (!request) {
-          return;
-        }
-
-        request.abort();
-        reject(cancel);
-        // Clean up request
-        request = null;
-      });
-    }
-
-    if (requestData === undefined) {
-      requestData = null;
-    }
-
-    // Send the request
-    request.send(requestData);
-  });
-};
-},{"./../utils":23,"./../core/settle":36,"./../helpers/buildURL":37,"./../helpers/parseHeaders":38,"./../helpers/isURLSameOrigin":39,"../core/createError":40,"./../helpers/btoa":41,"./../helpers/cookies":42}],33:[function(require,module,exports) {
-'use strict';
-
-var utils = require('../utils');
-
-module.exports = function normalizeHeaderName(headers, normalizedName) {
-  utils.forEach(headers, function processHeader(value, name) {
-    if (name !== normalizedName && name.toUpperCase() === normalizedName.toUpperCase()) {
-      headers[normalizedName] = value;
-      delete headers[name];
-    }
-  });
-};
-
-},{"../utils":23}],24:[function(require,module,exports) {
+},{}],39:[function(require,module,exports) {
 var process = require("process");
 'use strict';
 
@@ -9445,7 +9517,7 @@ utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
 
 module.exports = defaults;
 
-},{"./utils":23,"process":31,"./adapters/http":32,"./helpers/normalizeHeaderName":33,"./adapters/xhr":32}],34:[function(require,module,exports) {
+},{"./utils":38,"./helpers/normalizeHeaderName":52,"./adapters/xhr":51,"./adapters/http":51,"process":50}],46:[function(require,module,exports) {
 'use strict';
 
 var utils = require('./../utils');
@@ -9499,7 +9571,7 @@ InterceptorManager.prototype.forEach = function forEach(fn) {
 
 module.exports = InterceptorManager;
 
-},{"./../utils":23}],44:[function(require,module,exports) {
+},{"./../utils":38}],53:[function(require,module,exports) {
 'use strict';
 
 var utils = require('./../utils');
@@ -9521,14 +9593,14 @@ module.exports = function transformData(data, headers, fns) {
   return data;
 };
 
-},{"./../utils":23}],28:[function(require,module,exports) {
+},{"./../utils":38}],45:[function(require,module,exports) {
 'use strict';
 
 module.exports = function isCancel(value) {
   return !!(value && value.__CANCEL__);
 };
 
-},{}],45:[function(require,module,exports) {
+},{}],54:[function(require,module,exports) {
 'use strict';
 
 /**
@@ -9544,7 +9616,7 @@ module.exports = function isAbsoluteURL(url) {
   return /^([a-z][a-z\d\+\-\.]*:)?\/\//i.test(url);
 };
 
-},{}],46:[function(require,module,exports) {
+},{}],55:[function(require,module,exports) {
 'use strict';
 
 /**
@@ -9560,7 +9632,7 @@ module.exports = function combineURLs(baseURL, relativeURL) {
     : baseURL;
 };
 
-},{}],35:[function(require,module,exports) {
+},{}],47:[function(require,module,exports) {
 'use strict';
 
 var utils = require('./../utils');
@@ -9648,7 +9720,7 @@ module.exports = function dispatchRequest(config) {
   });
 };
 
-},{"./../utils":23,"../defaults":24,"./transformData":44,"../cancel/isCancel":28,"./../helpers/isAbsoluteURL":45,"./../helpers/combineURLs":46}],26:[function(require,module,exports) {
+},{"./../utils":38,"./transformData":53,"../cancel/isCancel":45,"../defaults":39,"./../helpers/isAbsoluteURL":54,"./../helpers/combineURLs":55}],40:[function(require,module,exports) {
 'use strict';
 
 var defaults = require('./../defaults');
@@ -9729,7 +9801,7 @@ utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
 
 module.exports = Axios;
 
-},{"./../defaults":24,"./../utils":23,"./InterceptorManager":34,"./dispatchRequest":35}],27:[function(require,module,exports) {
+},{"./../defaults":39,"./../utils":38,"./InterceptorManager":46,"./dispatchRequest":47}],43:[function(require,module,exports) {
 'use strict';
 
 /**
@@ -9750,7 +9822,7 @@ Cancel.prototype.__CANCEL__ = true;
 
 module.exports = Cancel;
 
-},{}],29:[function(require,module,exports) {
+},{}],42:[function(require,module,exports) {
 'use strict';
 
 var Cancel = require('./Cancel');
@@ -9809,7 +9881,7 @@ CancelToken.source = function source() {
 
 module.exports = CancelToken;
 
-},{"./Cancel":27}],30:[function(require,module,exports) {
+},{"./Cancel":43}],44:[function(require,module,exports) {
 'use strict';
 
 /**
@@ -9838,7 +9910,7 @@ module.exports = function spread(callback) {
   };
 };
 
-},{}],22:[function(require,module,exports) {
+},{}],37:[function(require,module,exports) {
 'use strict';
 
 var utils = require('./utils');
@@ -9892,9 +9964,9 @@ module.exports = axios;
 // Allow use of default import syntax in TypeScript
 module.exports.default = axios;
 
-},{"./utils":23,"./defaults":24,"./helpers/bind":25,"./core/Axios":26,"./cancel/Cancel":27,"./cancel/isCancel":28,"./cancel/CancelToken":29,"./helpers/spread":30}],21:[function(require,module,exports) {
+},{"./utils":38,"./helpers/bind":41,"./core/Axios":40,"./defaults":39,"./cancel/Cancel":43,"./cancel/CancelToken":42,"./cancel/isCancel":45,"./helpers/spread":44}],36:[function(require,module,exports) {
 module.exports = require('./lib/axios');
-},{"./lib/axios":22}],20:[function(require,module,exports) {
+},{"./lib/axios":37}],22:[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -10038,7 +10110,7 @@ exports.default = {
     }]);
   }
 };
-},{"axios":21}],19:[function(require,module,exports) {
+},{"axios":36}],23:[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -10054,7 +10126,7 @@ const ALL_USER = exports.ALL_USER = 'ALL_USER';
 const ADD_RESOURCE = exports.ADD_RESOURCE = 'ADD_RESOURCE';
 const LOAD_DOCUMENT = exports.LOAD_DOCUMENT = 'LOAD_DOCUMENT';
 const LOAD_DOCUMENT_LIST = exports.LOAD_DOCUMENT_LIST = 'LOAD_DOCUMENT_LIST';
-},{}],13:[function(require,module,exports) {
+},{}],12:[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -10132,7 +10204,7 @@ exports.default = {
     });
   }
 };
-},{"vue":9,"./backend":20,"./mutation-constants":19}],14:[function(require,module,exports) {
+},{"vue":10,"./backend":22,"./mutation-constants":23}],13:[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -10147,7 +10219,7 @@ exports.default = {
     return state.resourceOne + value;
   }
 };
-},{}],15:[function(require,module,exports) {
+},{}],11:[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -10191,7 +10263,7 @@ exports.default = {
     state.locale = locale;
   }
 };
-},{"vue":9,"./mutation-constants":19}],8:[function(require,module,exports) {
+},{"vue":10,"./mutation-constants":23}],9:[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -10267,14 +10339,17 @@ exports.default = new _vuex2.default.Store({
     }
   }
 });
-},{"vue":9,"vuex":17,"vuex/dist/logger":18,"./actions":13,"./getters":14,"./mutations":15}],16:[function(require,module,exports) {
+},{"vue":10,"vuex":14,"vuex/dist/logger":15,"./actions":12,"./getters":13,"./mutations":11}],21:[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
 /**
   * vue-router v3.0.1
   * (c) 2017 Evan You
   * @license MIT
   */
-'use strict';
-
 /*  */
 
 function assert(condition, message) {
@@ -12716,8 +12791,8 @@ if (inBrowser && window.Vue) {
   window.Vue.use(VueRouter);
 }
 
-module.exports = VueRouter;
-},{}],11:[function(require,module,exports) {
+exports.default = VueRouter;
+},{}],26:[function(require,module,exports) {
 var inserted = exports.cache = {}
 
 function noop () {}
@@ -12742,7 +12817,7 @@ exports.insert = function (css) {
   }
 }
 
-},{}],10:[function(require,module,exports) {
+},{}],25:[function(require,module,exports) {
 var Vue // late bind
 var version
 var map = (window.__VUE_HOT_MAP__ = Object.create(null))
@@ -12972,8 +13047,8 @@ exports.reload = tryWrap(function (id, options) {
   })
 })
 
-},{}],12:[function(require,module,exports) {
-var __vueify_style_dispose__ = require("vueify/lib/insert-css").insert(".fade-enter-active[data-v-2204e40e],\n.fade-leave-active[data-v-2204e40e] {\n  transition: opacity 0.75s;\n}\n.fade-enter[data-v-2204e40e],\n.fade-leave-to[data-v-2204e40e] {\n  opacity: 0;\n}\nnav.navbar[data-v-2204e40e] {\n  min-height: none;\n  background-color: #F5F5F5;\n  border-bottom: solid 1px #dbdbdb;\n  overflow: auto;\n}\nnav.navbar .navbar-brand[data-v-2204e40e] {\n  float: left;\n}\nnav.navbar .navbar-menu[data-v-2204e40e] {\n  float: right;\n  display: flex;\n}\nnav.navbar .navbar-menu .navbar-start[data-v-2204e40e] {\n  flex: 1;\n}\nnav.navbar .navbar-menu .navbar-end[data-v-2204e40e] {\n  flex: 1;\n  width: 300px;\n}\nnav.navbar .navbar-item[data-v-2204e40e] {\n  display: inline-block;\n  padding-top: 10px;\n  padding-bottom: 10px;\n}\n.navbar-brand > .navbar-item[data-v-2204e40e] {\n  padding-left: 10px;\n}\n.profile-image[data-v-2204e40e] {\n  border-radius: 50%;\n  height: 30px;\n  width: 30px;\n}")
+},{}],16:[function(require,module,exports) {
+var __vueify_style_dispose__ = require("vueify/lib/insert-css").insert("body {\n  background-color: white;\n  padding: 0px;\n  margin: 0px;\n}\n.fade-enter-active,\n.fade-leave-active {\n  transition: opacity 0.75s;\n}\n.fade-enter,\n.fade-leave-to {\n  opacity: 0;\n}\nnav.navbar {\n  min-height: none;\n  background-color: #F5F5F5;\n  border-bottom: solid 1px #dbdbdb;\n  overflow: auto;\n}\nnav.navbar .navbar-brand {\n  float: left;\n}\nnav.navbar .navbar-menu {\n  float: right;\n  display: flex;\n}\nnav.navbar .navbar-menu .navbar-start {\n  flex: 1;\n}\nnav.navbar .navbar-menu .navbar-end {\n  flex: 1;\n  width: 300px;\n}\nnav.navbar .navbar-item {\n  display: inline-block;\n  padding-top: 10px;\n  padding-bottom: 10px;\n}\n.navbar-brand > .navbar-item {\n  padding-left: 10px;\n}\n.profile-image {\n  border-radius: 50%;\n  height: 30px;\n  width: 30px;\n}")
 ;(function(){
 'use strict';
 
@@ -13017,9 +13092,8 @@ exports.default = {
 if (module.exports.__esModule) module.exports = module.exports.default
 var __vue__options__ = (typeof module.exports === "function"? module.exports.options: module.exports)
 if (__vue__options__.functional) {console.error("[vueify] functional components are not supported and should be defined in plain js files using render functions.")}
-__vue__options__.render = function render () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('nav',{staticClass:"navbar is-white",attrs:{"role":"navigation","aria-label":"main navigation"}},[_vm._m(0,false,false),_vm._v(" "),_c('div',{staticClass:"navbar-menu"},[_vm._m(1,false,false),_vm._v(" "),_c('div',{staticClass:"navbar-end"},[_c('div',{staticClass:"navbar-item is-size-7 is-dark"},[_c('router-link',{attrs:{"tag":"a","to":"/make/code"}},[_vm._v("Code")])],1),_vm._v(" "),_c('div',{staticClass:"navbar-item is-size-7 is-dark"},[_c('router-link',{attrs:{"tag":"a","to":"/make/pr"}},[_vm._v("Presentation")])],1)])])])}
+__vue__options__.render = function render () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('nav',{staticClass:"navbar is-white",attrs:{"role":"navigation","aria-label":"main navigation"}},[_vm._m(0),_vm._v(" "),_c('div',{staticClass:"navbar-menu"},[_vm._m(1),_vm._v(" "),_c('div',{staticClass:"navbar-end"},[_c('div',{staticClass:"navbar-item is-size-7 is-dark"},[_c('router-link',{attrs:{"tag":"a","to":"/make/code"}},[_vm._v("Code")])],1),_vm._v(" "),_c('div',{staticClass:"navbar-item is-size-7 is-dark"},[_c('router-link',{attrs:{"tag":"a","to":"/make/pr"}},[_vm._v("Presentation")])],1)])])])}
 __vue__options__.staticRenderFns = [function render () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{staticClass:"navbar-brand"},[_c('a',{staticClass:"navbar-item",attrs:{"href":"/"}},[_vm._v("VueLog")])])},function render () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{staticClass:"navbar-start"},[_c('span',{staticClass:"navbar-item is-size-7 is-dark"})])}]
-__vue__options__._scopeId = "data-v-2204e40e"
 if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
@@ -13028,10 +13102,10 @@ if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
   if (!module.hot.data) {
     hotAPI.createRecord("data-v-2204e40e", __vue__options__)
   } else {
-    hotAPI.rerender("data-v-2204e40e", __vue__options__)
+    hotAPI.reload("data-v-2204e40e", __vue__options__)
   }
 })()}
-},{"vue":9,"vueify/lib/insert-css":11,"vue-hot-reload-api":10,"../store/mutation-constants":19}],50:[function(require,module,exports) {
+},{"vue":10,"vueify/lib/insert-css":26,"vue-hot-reload-api":25,"../store/mutation-constants":23}],18:[function(require,module,exports) {
 ;(function(){
 'use strict';
 
@@ -13052,7 +13126,6 @@ var __vue__options__ = (typeof module.exports === "function"? module.exports.opt
 if (__vue__options__.functional) {console.error("[vueify] functional components are not supported and should be defined in plain js files using render functions.")}
 __vue__options__.render = function render () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('footer',{staticClass:"footer"},[_c('div',{staticClass:"container"},[_c('div',{staticClass:"content has-text-centered"},[_c('p',[_vm._v("\n            blabla "+_vm._s(_vm.version)+"\n        ")])])])])}
 __vue__options__.staticRenderFns = []
-__vue__options__._scopeId = "data-v-504b6a04"
 if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
@@ -13063,7 +13136,7 @@ if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
     hotAPI.reload("data-v-504b6a04", __vue__options__)
   }
 })()}
-},{"vue":9,"vueify/lib/insert-css":11,"vue-hot-reload-api":10}],51:[function(require,module,exports) {
+},{"vue":10,"vueify/lib/insert-css":26,"vue-hot-reload-api":25}],24:[function(require,module,exports) {
 var __vueify_style_dispose__ = require("vueify/lib/insert-css").insert(".container {\n  margin: 0 auto;\n  max-width: 960px;\n}\n.document-list {\n  list-style-type: none;\n  padding-left: 0px;\n  display: flex;\n  flex-wrap: wrap;\n  box-shadow: 0 0 0 rgba(0, 0, 0, 0.1);\n}\n.document-list .document-item {\n  width: 300px;\n  height: 200px;\n  background-color: rgba(0, 0, 0, 0.5);\n  color: white;\n  box-sizing: border-box;\n  margin: 10px;\n  padding: 30px;\n}")
 ;(function(){
 'use strict';
@@ -13097,10 +13170,10 @@ if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
   if (!module.hot.data) {
     hotAPI.createRecord("data-v-c8f99f0c", __vue__options__)
   } else {
-    hotAPI.rerender("data-v-c8f99f0c", __vue__options__)
+    hotAPI.reload("data-v-c8f99f0c", __vue__options__)
   }
 })()}
-},{"vue":9,"vueify/lib/insert-css":11,"vue-hot-reload-api":10}],49:[function(require,module,exports) {
+},{"vue":10,"vueify/lib/insert-css":26,"vue-hot-reload-api":25}],17:[function(require,module,exports) {
 ;(function(){
 'use strict';
 
@@ -13152,7 +13225,7 @@ if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
     hotAPI.reload("data-v-4d889b00", __vue__options__)
   }
 })()}
-},{"vue":9,"vueify/lib/insert-css":11,"vue-hot-reload-api":10,"./DocumentList":51,"../store/mutation-constants":19}],66:[function(require,module,exports) {
+},{"vue":10,"vueify/lib/insert-css":26,"vue-hot-reload-api":25,"./DocumentList":24,"../store/mutation-constants":23}],30:[function(require,module,exports) {
 var __vueify_style_dispose__ = require("vueify/lib/insert-css").insert(".code-toolbar {\n  position: absolute;\n  left: 0px;\n  right: 0px;\n  top: 0px;\n  height: 40px;\n}")
 ;(function(){
 'use strict';
@@ -13183,8 +13256,8 @@ if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
     hotAPI.reload("data-v-20d6c65c", __vue__options__)
   }
 })()}
-},{"vue":9,"vueify/lib/insert-css":11,"vue-hot-reload-api":10}],68:[function(require,module,exports) {
-var __vueify_style_dispose__ = require("vueify/lib/insert-css").insert(".code-resources[data-v-008fd880] {\n  position: absolute;\n  left: 0px;\n  top: 0px;\n  width: 240px;\n  bottom: 0px;\n  background-color: rgba(0, 0, 0, 0.3);\n}\n.code-resources .code-resource-item[data-v-008fd880] {\n  color: white;\n  padding: 5px;\n  border-bottom: 1px solid #ececec;\n}\n.code-resources .code-external-resource-item[data-v-008fd880] {\n  color: rgba(255, 255, 255, 0.8);\n  padding: 5px;\n  text-decoration: underline;\n}")
+},{"vue":10,"vueify/lib/insert-css":26,"vue-hot-reload-api":25}],32:[function(require,module,exports) {
+var __vueify_style_dispose__ = require("vueify/lib/insert-css").insert(".code-resources {\n  position: absolute;\n  left: 0px;\n  top: 0px;\n  width: 240px;\n  bottom: 0px;\n  background-color: rgba(0, 0, 0, 0.3);\n}\n.code-resources .code-resource-item {\n  color: white;\n  padding: 5px;\n  border-bottom: 1px solid #ececec;\n}\n.code-resources .code-external-resource-item {\n  color: rgba(255, 255, 255, 0.8);\n  padding: 5px;\n  text-decoration: underline;\n}")
 ;(function(){
 'use strict';
 
@@ -13226,9 +13299,8 @@ exports.default = {
 if (module.exports.__esModule) module.exports = module.exports.default
 var __vue__options__ = (typeof module.exports === "function"? module.exports.options: module.exports)
 if (__vue__options__.functional) {console.error("[vueify] functional components are not supported and should be defined in plain js files using render functions.")}
-__vue__options__.render = function render () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{staticClass:"code-resources"},[_vm._l((_vm.resources),function(item, key){return _c('div',{staticClass:"code-resource-item"},[_vm._v("\n    "+_vm._s(key)+"\n  ")])}),_vm._v(" "),(_vm.path)?_c('div',{staticClass:"code-resource-item"},[_c('input',{directives:[{name:"model",rawName:"v-model",value:(_vm.path),expression:"path"}],staticClass:"add-resource-name-input",attrs:{"type":"text"},domProps:{"value":(_vm.path)},on:{"keyup":function($event){if(!('button' in $event)&&_vm._k($event.keyCode,"enter",13,$event.key)){ return null; }_vm.keyup($event)},"input":function($event){if($event.target.composing){ return; }_vm.path=$event.target.value}}})]):_vm._e(),_vm._v(" "),_c('button',{staticClass:"add-resource-btn",attrs:{"type":"button"},on:{"click":_vm.addResource}},[_vm._v("+ Add Resource")]),_vm._v(" "),_vm._l((_vm.externalResources),function(item){return _c('div',{staticClass:"code-external-resource-item"},[_vm._v("\n    "+_vm._s(item)+"\n  ")])})],2)}
+__vue__options__.render = function render () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{staticClass:"code-resources"},[_vm._l((_vm.resources),function(item,key){return _c('div',{staticClass:"code-resource-item"},[_vm._v("\n    "+_vm._s(key)+"\n  ")])}),_vm._v(" "),(_vm.path)?_c('div',{staticClass:"code-resource-item"},[_c('input',{directives:[{name:"model",rawName:"v-model",value:(_vm.path),expression:"path"}],staticClass:"add-resource-name-input",attrs:{"type":"text"},domProps:{"value":(_vm.path)},on:{"keyup":function($event){if(!('button' in $event)&&_vm._k($event.keyCode,"enter",13,$event.key)){ return null; }_vm.keyup($event)},"input":function($event){if($event.target.composing){ return; }_vm.path=$event.target.value}}})]):_vm._e(),_vm._v(" "),_c('button',{staticClass:"add-resource-btn",attrs:{"type":"button"},on:{"click":_vm.addResource}},[_vm._v("+ Add Resource")]),_vm._v(" "),_vm._l((_vm.externalResources),function(item){return _c('div',{staticClass:"code-external-resource-item"},[_vm._v("\n    "+_vm._s(item)+"\n  ")])})],2)}
 __vue__options__.staticRenderFns = []
-__vue__options__._scopeId = "data-v-008fd880"
 if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
@@ -13240,8 +13312,8 @@ if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
     hotAPI.reload("data-v-008fd880", __vue__options__)
   }
 })()}
-},{"../../../../store/mutation-constants":19,"vue":9,"vue-hot-reload-api":10,"vueify/lib/insert-css":11}],69:[function(require,module,exports) {
-var __vueify_style_dispose__ = require("vueify/lib/insert-css").insert(".code-editor[data-v-12e23222] {\n  position: absolute;\n  left: 240px;\n  top: 0px;\n  width: 700px;\n  bottom: 0px;\n}")
+},{"vue":10,"vueify/lib/insert-css":26,"vue-hot-reload-api":25,"../../../../store/mutation-constants":23}],33:[function(require,module,exports) {
+var __vueify_style_dispose__ = require("vueify/lib/insert-css").insert(".code-editor {\n  position: absolute;\n  left: 240px;\n  top: 0px;\n  width: 700px;\n  bottom: 0px;\n}")
 ;(function(){
 'use strict';
 
@@ -13265,7 +13337,6 @@ var __vue__options__ = (typeof module.exports === "function"? module.exports.opt
 if (__vue__options__.functional) {console.error("[vueify] functional components are not supported and should be defined in plain js files using render functions.")}
 __vue__options__.render = function render () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{staticClass:"code-editor"})}
 __vue__options__.staticRenderFns = []
-__vue__options__._scopeId = "data-v-12e23222"
 if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
@@ -13277,8 +13348,8 @@ if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
     hotAPI.reload("data-v-12e23222", __vue__options__)
   }
 })()}
-},{"vue":9,"vue-hot-reload-api":10,"vueify/lib/insert-css":11}],70:[function(require,module,exports) {
-var __vueify_style_dispose__ = require("vueify/lib/insert-css").insert(".code-preview[data-v-3a3c2963] {\n  position: absolute;\n  left: 940px;\n  top: 0px;\n  right: 0px;\n  bottom: 0px;\n  background-color: gray;\n}")
+},{"vue":10,"vueify/lib/insert-css":26,"vue-hot-reload-api":25}],34:[function(require,module,exports) {
+var __vueify_style_dispose__ = require("vueify/lib/insert-css").insert(".code-preview {\n  position: absolute;\n  left: 940px;\n  top: 0px;\n  right: 0px;\n  bottom: 0px;\n  background-color: gray;\n}")
 ;(function(){
 'use strict';
 
@@ -13302,7 +13373,6 @@ var __vue__options__ = (typeof module.exports === "function"? module.exports.opt
 if (__vue__options__.functional) {console.error("[vueify] functional components are not supported and should be defined in plain js files using render functions.")}
 __vue__options__.render = function render () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{staticClass:"code-preview"})}
 __vue__options__.staticRenderFns = []
-__vue__options__._scopeId = "data-v-3a3c2963"
 if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
@@ -13314,7 +13384,7 @@ if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
     hotAPI.reload("data-v-3a3c2963", __vue__options__)
   }
 })()}
-},{"vue":9,"vue-hot-reload-api":10,"vueify/lib/insert-css":11}],67:[function(require,module,exports) {
+},{"vue":10,"vueify/lib/insert-css":26,"vue-hot-reload-api":25}],31:[function(require,module,exports) {
 var __vueify_style_dispose__ = require("vueify/lib/insert-css").insert(".code-layout {\n  position: absolute;\n  left: 0px;\n  right: 0px;\n  bottom: 0px;\n  top: 40px;\n}")
 ;(function(){
 'use strict';
@@ -13365,7 +13435,7 @@ if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
     hotAPI.reload("data-v-099bedd9", __vue__options__)
   }
 })()}
-},{"vue":9,"vueify/lib/insert-css":11,"vue-hot-reload-api":10,"./feature/CodeResources.vue":68,"./feature/CodeEditor.vue":69,"./feature/CodePreview.vue":70}],64:[function(require,module,exports) {
+},{"vue":10,"vueify/lib/insert-css":26,"vue-hot-reload-api":25,"./feature/CodeResources.vue":32,"./feature/CodeEditor.vue":33,"./feature/CodePreview.vue":34}],27:[function(require,module,exports) {
 var __vueify_style_dispose__ = require("vueify/lib/insert-css").insert(".code-manager {\n  position: absolute;\n  top: 40px;\n  left: 0px;\n  right: 0px;\n  bottom: 0px;\n  background-color: #ececec;\n  list-style-type: none;\n  padding-left: 0px;\n}")
 ;(function(){
 'use strict';
@@ -13417,7 +13487,7 @@ if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
     hotAPI.reload("data-v-477e9e93", __vue__options__)
   }
 })()}
-},{"vue":9,"vueify/lib/insert-css":11,"vue-hot-reload-api":10,"./Toolbar":66,"./Layout":67}],65:[function(require,module,exports) {
+},{"vue":10,"vueify/lib/insert-css":26,"vue-hot-reload-api":25,"./Toolbar":30,"./Layout":31}],28:[function(require,module,exports) {
 var __vueify_style_dispose__ = require("vueify/lib/insert-css").insert(".pr-manager {\n  list-style-type: none;\n  padding-left: 0px;\n}")
 ;(function(){
 'use strict';
@@ -13454,7 +13524,7 @@ if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
     hotAPI.reload("data-v-160cc1b0", __vue__options__)
   }
 })()}
-},{"vue-hot-reload-api":10,"vue":9,"vueify/lib/insert-css":11}],63:[function(require,module,exports) {
+},{"vue":10,"vueify/lib/insert-css":26,"vue-hot-reload-api":25}],19:[function(require,module,exports) {
 ;(function(){
 'use strict';
 
@@ -13510,7 +13580,7 @@ if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
     hotAPI.reload("data-v-8ae79b64", __vue__options__)
   }
 })()}
-},{"vue":9,"vueify/lib/insert-css":11,"vue-hot-reload-api":10,"./manager/code":64,"./manager/pr":65}],72:[function(require,module,exports) {
+},{"vue":10,"vueify/lib/insert-css":26,"vue-hot-reload-api":25,"./manager/code":27,"./manager/pr":28}],29:[function(require,module,exports) {
 var __vueify_style_dispose__ = require("vueify/lib/insert-css").insert(".container {\n  margin: 0 auto;\n  max-width: 960px;\n}\n.document-list {\n  list-style-type: none;\n  padding-left: 0px;\n  display: flex;\n  flex-wrap: wrap;\n  box-shadow: 0 0 0 rgba(0, 0, 0, 0.1);\n}\n.document-list .document-item {\n  width: 300px;\n  height: 200px;\n  background-color: rgba(0, 0, 0, 0.5);\n  color: white;\n  box-sizing: border-box;\n  margin: 10px;\n  padding: 30px;\n}")
 ;(function(){
 'use strict';
@@ -13547,7 +13617,7 @@ if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
     hotAPI.reload("data-v-bf885224", __vue__options__)
   }
 })()}
-},{"vue":9,"vueify/lib/insert-css":11,"vue-hot-reload-api":10}],71:[function(require,module,exports) {
+},{"vue":10,"vueify/lib/insert-css":26,"vue-hot-reload-api":25}],20:[function(require,module,exports) {
 ;(function(){
 'use strict';
 
@@ -13578,10 +13648,6 @@ exports.default = {
     }
   },
 
-  activated: function activated() {
-    console.log(arguments, this);
-  },
-
   mounted: function mounted() {
 
     var id = this.$route.params.id;
@@ -13606,7 +13672,7 @@ if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
     hotAPI.reload("data-v-723f2f1a", __vue__options__)
   }
 })()}
-},{"vue":9,"vueify/lib/insert-css":11,"vue-hot-reload-api":10,"./DocumentViewer":72,"../store/mutation-constants":19}],7:[function(require,module,exports) {
+},{"vue":10,"vueify/lib/insert-css":26,"vue-hot-reload-api":25,"./DocumentViewer":29,"../store/mutation-constants":23}],8:[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -13676,7 +13742,7 @@ exports.default = new _vueRouter2.default({
     }
   }]
 });
-},{"vue":9,"vue-router":16,"./components/Navbar.vue":12,"./components/Footer.vue":50,"./views/Home.vue":49,"./views/Editor.vue":63,"./views/Viewer.vue":71}],6:[function(require,module,exports) {
+},{"vue":10,"vue-router":21,"./components/Navbar.vue":16,"./components/Footer.vue":18,"./views/Home.vue":17,"./views/Editor.vue":19,"./views/Viewer.vue":20}],7:[function(require,module,exports) {
 var __vueify_style_dispose__ = require("vueify/lib/insert-css").insert("div {\n  color: black;\n}")
 ;(function(){
 "use strict";
@@ -13706,7 +13772,7 @@ if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
     hotAPI.reload("data-v-1659069e", __vue__options__)
   }
 })()}
-},{"vue":9,"vueify/lib/insert-css":11,"vue-hot-reload-api":10}],4:[function(require,module,exports) {
+},{"vue":10,"vueify/lib/insert-css":26,"vue-hot-reload-api":25}],5:[function(require,module,exports) {
 "use strict";
 
 var _vue = require("vue");
@@ -13734,7 +13800,7 @@ const app = new _vue2.default({
   store: _store2.default,
   render: h => h(_App2.default)
 });
-},{"vue":9,"./store":8,"./router":7,"./App.vue":6}],0:[function(require,module,exports) {
+},{"vue":10,"./store":9,"./router":8,"./App.vue":7}],0:[function(require,module,exports) {
 var global = (1, eval)('this');
 var OldModule = module.bundle.Module;
 function Module(config) {
@@ -13753,7 +13819,7 @@ function Module(config) {
 module.bundle.Module = Module;
 
 if (!module.bundle.parent) {
-    var ws = new WebSocket('ws://localhost:51790/');
+    var ws = new WebSocket('ws://localhost:54295/');
     ws.onmessage = (e) => {
         var data = JSON.parse(e.data);
 
@@ -13845,4 +13911,4 @@ function hmrAccept(bundle, id) {
 
     return getParents(global.require, id).some(id => hmrAccept(global.require, id));
 }
-},{}]},{},[0,4])
+},{}]},{},[0,5])

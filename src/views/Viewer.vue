@@ -28,10 +28,6 @@ export default {
     }
   },
 
-  activated: function () {
-    console.log(arguments, this);
-  },
-
   mounted : function () {
 
     const id = this.$route.params.id;

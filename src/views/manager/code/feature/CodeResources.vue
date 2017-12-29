@@ -48,7 +48,7 @@ export default {
 }
 </script>
 
-<style lang="less" scoped>
+<style lang="less">
 .code-resources {
     position: absolute;
     left: 0px;

@@ -22,7 +22,7 @@ export default {
 }
 </script>
 
-<style lang="less" scoped>
+<style lang="less">
 .code-editor {
     position: absolute;
     left: 240px;

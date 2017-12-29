@@ -22,7 +22,7 @@ export default {
 }
 </script>
 
-<style lang="less" scoped>
+<style lang="less">
 .code-preview {
     position: absolute;
     left: 940px;

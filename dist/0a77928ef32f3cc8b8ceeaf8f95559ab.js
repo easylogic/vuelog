@@ -65,7 +65,7 @@ require = (function (modules, cache, entry) {
 
     // Override the current require with this new one
     return newRequire;
-})({57:[function(require,module,exports) {
+})({48:[function(require,module,exports) {
 var bundleURL = null;
 function getBundleURLCached() {
   if (!bundleURL) {
@@ -80,7 +80,7 @@ function getBundleURL() {
   try {
     throw new Error;
   } catch (err) {
-    var matches = ('' + err.stack).match(/(https?|file|ftp):\/\/[^\)\n]+/g);
+    var matches = ('' + err.stack).match(/(https?|file|ftp):\/\/[^)\n]+/g);
     if (matches) {
       return getBaseURL(matches[0]);
     }
@@ -90,13 +90,13 @@ function getBundleURL() {
 }
 
 function getBaseURL(url) {
-  return ('' + url).replace(/^((?:https?|file|ftp):\/\/.+)\/[^\/]+$/, '$1') + '/';
+  return ('' + url).replace(/^((?:https?|file|ftp):\/\/.+)\/[^/]+$/, '$1') + '/';
 }
 
 exports.getBundleURL = getBundleURLCached;
 exports.getBaseURL = getBaseURL;
 
-},{}],56:[function(require,module,exports) {
+},{}],35:[function(require,module,exports) {
 var bundle = require('./bundle-url');
 
 function updateLink(link) {
@@ -124,11 +124,11 @@ function reloadCSS() {
 
     cssTimeout = null;
   }, 50);
-};
+}
 
 module.exports = reloadCSS;
 
-},{"./bundle-url":57}],0:[function(require,module,exports) {
+},{"./bundle-url":48}],0:[function(require,module,exports) {
 var global = (1, eval)('this');
 var OldModule = module.bundle.Module;
 function Module(config) {
@@ -147,7 +147,7 @@ function Module(config) {
 module.bundle.Module = Module;
 
 if (!module.bundle.parent) {
-    var ws = new WebSocket('ws://localhost:51790/');
+    var ws = new WebSocket('ws://localhost:54295/');
     ws.onmessage = (e) => {
         var data = JSON.parse(e.data);
 
