@@ -34,6 +34,6 @@ export default {
     left: 0px;
     right: 0px;
     bottom:0px;
-    top: 40px;
+    top: 50px;
 }
 </style>

@@ -29,6 +29,7 @@ export default {
     top:0px;
     right: 0px;
     bottom:0px;
-    background-color: gray;
+    box-sizing: border-box;
+    background-color: rgb(243, 243, 243);
 }
 </style>

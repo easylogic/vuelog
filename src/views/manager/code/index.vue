@@ -31,7 +31,7 @@ export default {
 <style lang="less">
 .code-manager {
   position: absolute;
-  top:40px;
+  top:0px;
   left: 0px;
   right: 0px;
   bottom: 0px;

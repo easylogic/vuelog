@@ -22,6 +22,10 @@ export default {
     left: 0px;
     right: 0px;
     top:0px;
-    height: 40px;
+    height: 50px;
+    box-sizing: border-box;
+    background-color: white;
+    border-bottom:1px solid #ececec;
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0.1);
 }
 </style>

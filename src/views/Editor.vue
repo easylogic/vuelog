@@ -13,6 +13,8 @@
 import CodeManager from './manager/code'
 import PrManager from './manager/pr'
 
+import { LOAD_DOCUMENT } from '../store/mutation-constants'
+
 export default {
   name: 'Manager',
   components : {
@@ -35,6 +37,13 @@ export default {
       }
 
     }
+  },
+
+  mounted: function () {
+
+    const id = this.$route.params.id;
+
+    this.$store.dispatch(LOAD_DOCUMENT, id);
   }
 }
 </script>

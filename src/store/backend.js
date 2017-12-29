@@ -49,6 +49,7 @@ export default {
         documentType : 'code',
         timestamp : Date.now(), 
         path: idOrPath,
+        me: true,
         title: "blabla",
         url : "custom path or auto created path",
         description : "이건 정말 환상적인 거에요. 같이보시죠.", 

@@ -10,10 +10,10 @@
       </div>
       <div class="right">
         <div class="tools">
-          <router-link tag="button" type="button" class="button block red" :to="`/edit/${doc.id}`">Edit</router-link>
-          <button type="button" class="button block">FullScreen</button>          
+          <router-link tag="button" type="button" class="button block red" :to="`/edit/${doc.id}`" v-if="doc.me">Edit</router-link>
+          <button type="button" class="button block">Full Screen</button>          
         </div>
-        <div class='qrcode'></div>
+        <div class='qrcode' v-html="qrcode"></div>
       </div>
       <div class="comments">
 
@@ -39,7 +39,17 @@ export default {
     }
   },
   computed: {
-    doc () {
+    qrcode () {
+      var qr = require('qr-image');
+  
+      var qr_svg = qr.imageSync(location.href, { type: 'svg' });
+
+      return qr_svg; 
+    },
+    doc () { 
+
+
+
       return this.$store.state.currentDocument
     }
   },
@@ -75,9 +85,10 @@ export default {
 
       .button {
         margin-bottom: 5px;
-        border:1px solid #ececec;
+        border:1px solid rgba(255, 0, 0, 0.5);
         border-radius: 5px; 
         outline: none;
+        font-size: 1.1rem;
 
         &.red {
           background-color: rgba(255, 0, 0, 0.5);
@@ -95,7 +106,6 @@ export default {
 
       .qrcode {
         width: 190px;
-        height: 200px;
         margin:0 auto;
         margin-top:20px;
         box-shadow: 0 0 2px 0px rgba(255, 0, 0, 0.5);
