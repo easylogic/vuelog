@@ -1,12 +1,11 @@
 import Vue from 'vue'
 import backend from './backend'
 import { 
-    INCREMENT, 
-    LOAD_MEETUP, 
     SWITCH_LOCALE, 
-    ADD_USER, 
-    ALL_USER, 
     ADD_RESOURCE,
+    EDIT_RESOURCE,
+    SELECT_RESOURCE,
+    CLOSE_RESOURCE,
     LOAD_DOCUMENT,
     LOAD_GENERATED_DOCUMENT,    
     LOAD_DOCUMENT_LIST
@@ -18,35 +17,24 @@ export default {
     return backend.getCurrentLocale()
   },
 
-  [LOAD_MEETUP] ( { commit } ) {
-    backend.fetchMeetupList(function (responseData) {
-      commit(LOAD_MEETUP, responseData)
-    })
-
-  },
   [SWITCH_LOCALE] ( { commit }, locale) {
     commit(SWITCH_LOCALE, locale);
   },  
 
-  [INCREMENT] ( { commit }) {
-    commit(INCREMENT);
-  },
-
-  [ADD_USER] ( { commit }) {
-    backend.addUser(function (responseData){
-      console.log(responseData);
-    });
-  },
-
-  [ALL_USER] ( { commit }) {
-    backend.allUser(function (responseData){
-      console.log(responseData);
-    });
-  } ,
-
   [ADD_RESOURCE] ( { commit }, path ) {
     commit(ADD_RESOURCE, path);
   }, 
+
+  [EDIT_RESOURCE] ( { commit }, file ) {
+    commit(SELECT_RESOURCE, file);    
+    commit(EDIT_RESOURCE, file);
+  },   
+  [SELECT_RESOURCE] ( { commit }, file ) {
+    commit(SELECT_RESOURCE, file);
+  },     
+  [CLOSE_RESOURCE] ( { commit }, file ) {
+    commit(CLOSE_RESOURCE, file);
+  },     
 
   [LOAD_DOCUMENT] ( { commit }, idOrPath ) {
     backend.fetchDocument(idOrPath, function (doc) {

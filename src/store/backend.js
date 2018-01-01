@@ -58,23 +58,12 @@ export default {
             'Https://ssss.sss.sss' , 
             'Local resource name',  
         ],
+        selectResource: '',
+        editResources : [],
         resources  : {
-            settings : {
-                type : 'object', 
-                Content :  { 
-                    a : 'b', 
-                    c : 'd' , 
-                    e : 'f' 
-                }
-            },
-            style : {
-                content : "", 
-                Type : 'less'
-            },
-            note :  {
-                content : '', 
-                type : 'markdown'
-            }
+            settings : "{json}",
+            style : "css",
+            note :  "markdown"
 
         }
         

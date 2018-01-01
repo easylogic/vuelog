@@ -16,7 +16,7 @@
       <div class="input">
         <label>Resources</label>
         <div class="code-resource-item" v-for="item, key in doc.resources">
-          <div class="resource" @click="editResource" :data-src="key">{{key}}</div>
+          <div v-bind:class="{ resource : true,  selected: selectResource == key }" @click="editResource" :data-src="key">{{key}}</div>
         </div>
         <div class='code-resource-item' v-if="path">
           <input type="text" class="add-resource-name-input" v-model="path" @keyup.enter="keyup" ref="name_input" />
@@ -34,7 +34,15 @@
 </template>
 <script>
 
-import { ADD_RESOURCE } from '../../../../store/mutation-constants' 
+import { 
+  ADD_RESOURCE,
+  EDIT_RESOURCE,
+  SELECT_RESOURCE
+
+} from '../../../../store/mutation-constants' 
+
+import { mapState } from 'vuex'
+
 
 export default {
   name: 'CodeResources',
@@ -50,6 +58,11 @@ export default {
         this.$refs.name_input.focus();
       })
     },
+    editResource: function (e) {
+      var file = e.target.getAttribute('data-src');
+
+      this.$store.dispatch(EDIT_RESOURCE, file);      
+    },
     keyup: function (e) {
       if (this.path) {        
         this.$store.dispatch(ADD_RESOURCE, this.path);
@@ -58,11 +71,12 @@ export default {
       }
     }
   },
-  computed: {
-    doc : function () {
-      return this.$store.state.currentDocument;
+  computed: mapState({
+    selectResource : (state) => state.currentDocument.selectResource,
+    doc : state => {
+      return state.currentDocument;
     }
-  }
+  })
 }
 </script>
 
@@ -73,17 +87,22 @@ export default {
     top:0px;
     width: 240px;
     bottom:0px;
-    padding:3px;
     box-sizing: border-box;
     background-color: white; 
     border-right:1px solid #ececec;
     overflow:auto;
 
     .code-resource-item {
-      padding: 5px 0px;
-      border-bottom: 1px solid #ececec;
       font-size: 0.9rem;
+      cursor: pointer;
 
+      .resource {
+        padding: 5px;
+        &.selected {
+          background-color: #ececec;
+        }
+      }
+      
       input {
         padding: 5px 10px !important;
       }
