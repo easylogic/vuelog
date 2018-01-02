@@ -12,6 +12,7 @@ import {
     UPDATE_CONTENT
 } from './mutation-constants'
 
+
 export default {
 
   [ADD_RESOURCE] (state, path ) {
@@ -24,6 +25,7 @@ export default {
       doc.editResources.push(file);
     }
       
+    state.currentDocument.selectResource = file; 
     
   },
   [SELECT_RESOURCE] (state, file ) {
@@ -47,7 +49,7 @@ export default {
 
   },
 
-  [UPDATE_CONTENT] (state, file, content) {
+  [UPDATE_CONTENT] (state, { file, content }) {
     state.currentDocument.resources[file] = content; 
   },
 

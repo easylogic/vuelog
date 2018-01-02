@@ -10,7 +10,7 @@
       </div>
       <div class="tab-container">
         <div class="tab-content" v-bind:class="{selected : selectResource == item }" v-for="item in editResources">
-          <editor :ref="`editor-${item}`" :data-src="item" :value="resources[item]" @change="updateContent" />
+          <editor :ref="`editor-${item}`" :file="item" v-model="resources[item]" @change="updateContent" />
         </div>
       </div>
     </div>
@@ -41,14 +41,13 @@ export default {
       this.$store.dispatch(SELECT_RESOURCE, file);
 
       this.$nextTick(()=> {
-        this.$refs[`editor-${file}`][0].focus();
+        let editor = this.$refs[`editor-${file}`][0];
+        editor.setValue(this.$store.state.currentDocument.resources[file]);
+        editor.focus();
       })
     },
-    updateContent : function (e) {
-
-      console.log(arguments);
-
-      //this.$store.dispatch(UPDATE_CONTENT, e.target.getAttribute('data-src'), e.target.value);
+    updateContent : function (file, content) {
+      this.$store.dispatch(UPDATE_CONTENT, { file, content });
     },
     closeResource : function (file, event) {
       if (event) event.preventDefault();

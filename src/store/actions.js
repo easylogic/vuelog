@@ -29,8 +29,7 @@ export default {
     commit(ADD_RESOURCE, path);
   }, 
 
-  [EDIT_RESOURCE] ( { commit }, file ) {
-    commit(SELECT_RESOURCE, file);    
+  [EDIT_RESOURCE] ( { commit }, file ) { 
     commit(EDIT_RESOURCE, file);
   },   
   [SELECT_RESOURCE] ( { commit }, file ) {
@@ -40,8 +39,8 @@ export default {
     commit(CLOSE_RESOURCE, file);
   }, 
   
-  [UPDATE_CONTENT] ( { commit }, file, content ) {
-    commit(UPDATE_CONTENT, file, content);
+  [UPDATE_CONTENT] ( { commit }, obj ) {
+    commit(UPDATE_CONTENT, obj);
   },   
 
   [LOAD_DOCUMENT] ( { commit }, idOrPath ) {

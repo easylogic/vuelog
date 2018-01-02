@@ -55,6 +55,7 @@ export default {
     addResource: function (e) {
       this.path = 'temp.txt'
       this.$nextTick(() => {
+        this.$refs.name_input.select();
         this.$refs.name_input.focus();
       })
     },
@@ -66,11 +67,6 @@ export default {
     enter: function (e) {
 
       const file = e.target.value; 
-
-      if (this.$store.hasFile(file)) {
-
-      }
-
       this.path = '';       
       this.$store.dispatch(ADD_RESOURCE, file);
     }
