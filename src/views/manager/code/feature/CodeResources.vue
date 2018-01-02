@@ -15,11 +15,11 @@
       </div>
       <div class="input">
         <label>Resources</label>
-        <div class="code-resource-item" v-for="item, key in doc.resources">
-          <div v-bind:class="{ resource : true,  selected: selectResource == key }" @click="editResource" :data-src="key">{{key}}</div>
+        <div class="code-resource-item" v-for="item, key in resources">
+          <div class="resource" v-bind:class="{ selected: selectResource == key }" @click="editResource" :data-src="key">{{key}}</div>
         </div>
         <div class='code-resource-item' v-if="path">
-          <input type="text" class="add-resource-name-input" v-model="path" @keyup.enter="keyup" ref="name_input" />
+          <input type="text" class="add-resource-name-input" :value="path" @keyup.enter="enter" ref="name_input" />
         </div>        
         <button type="button" class="add-resource-btn" @click="addResource">+ Add Resource</button>
       </div>
@@ -63,16 +63,21 @@ export default {
 
       this.$store.dispatch(EDIT_RESOURCE, file);      
     },
-    keyup: function (e) {
-      if (this.path) {        
-        this.$store.dispatch(ADD_RESOURCE, this.path);
-        this.path = '';     
+    enter: function (e) {
+
+      const file = e.target.value; 
+
+      if (this.$store.hasFile(file)) {
 
       }
+
+      this.path = '';       
+      this.$store.dispatch(ADD_RESOURCE, file);
     }
   },
   computed: mapState({
     selectResource : (state) => state.currentDocument.selectResource,
+    resources : (state) => state.currentDocument.resources,
     doc : state => {
       return state.currentDocument;
     }
@@ -85,11 +90,10 @@ export default {
     position: absolute;
     left: 0px;
     top:0px;
-    width: 240px;
+    right:0px;
     bottom:0px;
     box-sizing: border-box;
     background-color: white; 
-    border-right:1px solid #ececec;
     overflow:auto;
 
     .code-resource-item {
@@ -109,12 +113,13 @@ export default {
     }
 
     .input {
-      padding: 5px 5px;
+      padding: 10px;
 
       label {
         color: gray;
         font-size: 0.7rem;
         display:block;
+        margin-bottom:2px;
       }
 
       .form {

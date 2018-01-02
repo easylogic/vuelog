@@ -1,7 +1,5 @@
 
-import { 
-    INCREMENT, 
-    LOAD_MEETUP, 
+import {  
     SWITCH_LOCALE, 
     SAVE_LOCALE,
     ADD_RESOURCE, 
@@ -10,13 +8,14 @@ import {
     CLOSE_RESOURCE,
     LOAD_DOCUMENT, 
     LOAD_GENERATED_DOCUMENT, 
-    LOAD_DOCUMENT_LIST
+    LOAD_DOCUMENT_LIST,
+    UPDATE_CONTENT
 } from './mutation-constants'
 
 export default {
 
   [ADD_RESOURCE] (state, path ) {
-    state.currentDocument.resources[path] = { content : '' }
+    state.currentDocument.resources[path] = 'new resource';
   }, 
   [EDIT_RESOURCE] (state, file ) {
     // set to editing resource 
@@ -35,7 +34,7 @@ export default {
     let doc = state.currentDocument;
 
     let index = -1; 
-    if (doc.editResources && doc.editResources.length) {
+    if (doc.editResources.length) {
       index = doc.editResources.indexOf(file);
     } 
 
@@ -46,6 +45,10 @@ export default {
       }
     }
 
+  },
+
+  [UPDATE_CONTENT] (state, file, content) {
+    state.currentDocument.resources[file] = content; 
   },
 
 

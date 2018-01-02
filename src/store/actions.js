@@ -2,10 +2,14 @@ import Vue from 'vue'
 import backend from './backend'
 import { 
     SWITCH_LOCALE, 
+
     ADD_RESOURCE,
     EDIT_RESOURCE,
     SELECT_RESOURCE,
     CLOSE_RESOURCE,
+
+    UPDATE_CONTENT,
+
     LOAD_DOCUMENT,
     LOAD_GENERATED_DOCUMENT,    
     LOAD_DOCUMENT_LIST
@@ -34,7 +38,11 @@ export default {
   },     
   [CLOSE_RESOURCE] ( { commit }, file ) {
     commit(CLOSE_RESOURCE, file);
-  },     
+  }, 
+  
+  [UPDATE_CONTENT] ( { commit }, file, content ) {
+    commit(UPDATE_CONTENT, file, content);
+  },   
 
   [LOAD_DOCUMENT] ( { commit }, idOrPath ) {
     backend.fetchDocument(idOrPath, function (doc) {

@@ -3,13 +3,14 @@
     <div class="code-editor">
 
       <div class="tab">
-        <div class="tab-item" v-bind:class="{selected : selectResource == item }" :data-src="item" @click="doSelectResource"  v-for="item in editResources">
+        <div class="tab-item" v-bind:class="{selected : selectResource == item }" :data-src="item" @click.self="doSelectResource"  v-for="item in editResources">
           {{item | base_name}}
+          <span class="close" title="close" @click="closeResource(item, $event)">&times;</span>
         </div>
       </div>
       <div class="tab-container">
-        <div class="tab-content" v-bind:class="{selected : selectResource == item }" :data-src="item"  v-for="item in editResources">
-          {{resources[item]}}
+        <div class="tab-content" v-bind:class="{selected : selectResource == item }" v-for="item in editResources">
+          <editor :ref="`editor-${item}`" :data-src="item" :value="resources[item]" @change="updateContent" />
         </div>
       </div>
     </div>
@@ -18,16 +19,40 @@
 <script>
 
 import { mapState } from 'vuex'
-import { SELECT_RESOURCE } from '../../../../store/mutation-constants'
+import Editor from '../../../../components/ui/Editor.vue'
+
+import { 
+  SELECT_RESOURCE, 
+  CLOSE_RESOURCE,
+  UPDATE_CONTENT
+
+} from '../../../../store/mutation-constants'
 
 export default {
   name: 'CodeEditor',
+  components : {
+    editor : Editor
+  },
   methods: {
     doSelectResource : function (e) {
 
       var file = e.target.getAttribute('data-src');
 
       this.$store.dispatch(SELECT_RESOURCE, file);
+
+      this.$nextTick(()=> {
+        this.$refs[`editor-${file}`][0].focus();
+      })
+    },
+    updateContent : function (e) {
+
+      console.log(arguments);
+
+      //this.$store.dispatch(UPDATE_CONTENT, e.target.getAttribute('data-src'), e.target.value);
+    },
+    closeResource : function (file, event) {
+      if (event) event.preventDefault();
+      this.$store.dispatch(CLOSE_RESOURCE, file);
     }
   },
   computed: mapState({
@@ -46,12 +71,11 @@ export default {
 <style lang="less">
 .code-editor {
     position: absolute;
-    left: 240px;
+    left: 0px;
     top:0px;
-    width: 700px;
+    right:0px;
     bottom:0px;
     box-sizing: border-box;
-    border-right: 1px solid #dedede;
     background-color: white;
 
     .tab {
@@ -74,6 +98,7 @@ export default {
         background-color: white;
         cursor: pointer;
         font-size: 0.9rem;
+        line-height: 1.5;
 
         &:first-child {
           border-left:0px;
@@ -85,6 +110,22 @@ export default {
           background-color: #ececec;
           color: black; 
 
+        }
+
+        .close {
+          float: right;
+          font-size:0.8rem;
+          background-color: black;
+          color: white;
+          border-radius:50px;
+          line-height: 1.1;
+          font-weight: 100;
+          padding:0px;
+          width:12px;
+          height: 12px;
+          margin-top:5px;
+          display:inline-block;
+          box-sizing:border-box;
         }
       }
     }
@@ -106,12 +147,22 @@ export default {
         width:100%;
         height:100%;
         box-sizing: border-box;
-        padding:10px;
         display:none;
 
         &.selected {
 
           display:block;
+        }
+
+        textarea {
+          width:100%;
+          height:100%;
+          box-sizing: border-box;
+          border:0px;
+
+          &:focus {
+            outline: none;
+          }
         }
       }
 

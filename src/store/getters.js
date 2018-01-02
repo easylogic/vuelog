@@ -1,9 +1,6 @@
 export default {
     
-    getterOne: (state) => {
-    return state.resourceOne
-    },
-    getterWithArg: (state) => (value) => {
-    return state.resourceOne + value
+    hasFile: (state, file) => {
+        return false;
     }
 }
